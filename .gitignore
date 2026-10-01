@@ -1,0 +1,40 @@
+# Private working docs (local only, never committed)
+soham-build.prd
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Backend runtime artefacts
+backend/data/sqlite/
+backend/data/parquet/
+backend/data/keys/*.key
+backend/data/packs/staged/
+backend/dist/
+backend/wheelhouse/
+backend/*.db
+backend/*.db-wal
+backend/*.db-shm
+
+# Node / Next.js
+node_modules/
+.pnpm-store/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,40 @@
+# Orion Core Backend — pinned exactly.
+# The offline bundle installs with `pip install --require-hashes -r requirements.txt`,
+# so every version below must be exact. No ranges.
+
+# --- API ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-multipart==0.0.20
+
+# --- State store ---
+SQLAlchemy==2.0.36
+
+# --- Evidence lake ---
+duckdb==1.1.3
+polars==1.17.1
+pandas==2.2.3
+pyarrow==18.1.0
+openpyxl==3.1.5
+
+# --- ML / stats (CPU only, offline) ---
+scikit-learn==1.6.0
+numpy==2.2.1
+scipy==1.15.0
+
+# --- Security / audit ---
+argon2-cffi==23.1.0
+cryptography==44.0.0
+
+# --- Config / mapping ---
+PyYAML==6.0.2
+rapidfuzz==3.10.1
+
+# --- Export ---
+Jinja2==3.1.5
+reportlab==4.2.5
+
+# --- Test ---
+httpx==0.28.1

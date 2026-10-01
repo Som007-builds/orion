@@ -1,0 +1,50 @@
+# Indian holiday calendar for Orion.
+# Backs NS-03 (temporal inactivity) and EG-03 (off-coverage closure) so that
+# legitimate quiet periods are HARD NEGATIVES rather than findings (plan §4.6.3).
+#
+# Format: date,holiday_name,scope
+#   scope: national  — nationwide shutdown / restricted activity
+#          gazetted  — gazetted holiday (banking / govt offices)
+#          major     — widely observed private-sector holiday
+#          regional  — observed in specific states only
+#
+# This is a REFERENCE table bundled with the offline install. Nothing is
+# fetched at runtime. Extend it per deployment; do not fetch it from a network
+# source, which would break the air-gap claim.
+
+# --- 2026 ---
+2026-01-01,Republic Day,national
+2026-01-26,Republic Day (observance),national
+2026-03-03,Holi,regional
+2026-03-04,Holi (observance),regional
+2026-03-21,Holi (Day 2),regional
+2026-04-01,Id-Ul-Fitr (Ramzan Id),regional
+2026-04-03,Id-Ul-Fitr (Day 2),regional
+2026-04-14,Dr. Ambedkar Jayanti,gazetted
+2026-05-01,Maharashtra Day,regional
+2026-05-27,Buddha Purnima,major
+2026-08-15,Independence Day,national
+2026-08-26,Ganesh Chaturthi,regional
+2026-10-02,Mahatma Gandhi Jayanti / Dussehra,national
+2026-10-20,Diwali (Lakshmi Puja),major
+2026-10-21,Diwali (Day 2),major
+2026-10-22,Diwali (Day 3),major
+2026-11-09,Govt. of Maharashtra Day,regional
+2026-11-24,Guru Nanak Jayanti,major
+2026-12-25,Christmas,national
+2026-12-26,Boxing Day,major
+
+# --- 2027 ---
+2027-01-01,New Year's Day,national
+2027-01-26,Republic Day,national
+2027-03-06,Holi,regional
+2027-03-22,Ramzan Id,regional
+2027-04-14,Dr. Ambedkar Jayanti,gazetted
+2027-05-01,Maharashtra Day,regional
+2027-08-15,Independence Day,national
+2027-10-02,Mahatma Gandhi Jayanti / Dussehra,national
+2027-10-08,Diwali (Lakshmi Puja),major
+2027-10-09,Diwali (Day 2),major
+2027-11-01,Govt. of Maharashtra Day,regional
+2027-11-08,Guru Nanak Jayanti,major
+2027-12-25,Christmas,national

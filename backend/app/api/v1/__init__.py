@@ -1,0 +1,1 @@
+"""API v1. `deps.py` carries auth/RBAC, pagination and idempotency."""

@@ -1,0 +1,220 @@
+# Orion default policy profile — NCIIPC supervisory assessment.
+#
+# Every threshold Orion uses lives in a policy profile. Nothing is hardcoded in
+# the indicator logic. The values below are the v1 hardcodes DEMOTED to
+# documented defaults (plan §4.2): they remain the primary mechanism only where
+# a peer-relative comparison is not yet the deciding factor.
+#
+# Loaded by `app.services.policy_profile.policy_profile`. Activation is
+# ledgered via POST /policy-profiles/{id}/activate.
+
+profile_id: nccipc_default
+version: "1"
+effective_from: "2026-10-01"
+
+timezone: Asia/Kolkata
+
+# ---------------------------------------------------------------- normalisation --
+# Vendor vocabularies absorbed BEFORE load. Unmapped severity values are
+# QUARANTINED, never guessed (plan §3.1).
+severity_map:
+  critical: CRITICAL
+  crit: CRITICAL
+  sev1: CRITICAL
+  p1: CRITICAL
+  high: HIGH
+  major: HIGH
+  sev2: HIGH
+  p2: HIGH
+  medium: MEDIUM
+  moderate: MEDIUM
+  warning: MEDIUM
+  sev3: MEDIUM
+  p3: MEDIUM
+  low: LOW
+  minor: LOW
+  info: LOW
+  informational: LOW
+  sev4: LOW
+  p4: LOW
+
+status_map:
+  new: NEW
+  created: NEW
+  open: OPEN
+  assigned: IN_PROGRESS
+  investigating: IN_PROGRESS
+  in_progress: IN_PROGRESS
+  escalated: ESCALATED
+  pending_escalation: ESCALATED
+  resolved: RESOLVED
+  closed: CLOSED
+  complete: CLOSED
+  completed: CLOSED
+  reopened: REOPENED
+  re_opened: REOPENED
+
+# Canonical case state machine (plan §3.1).
+state_machine:
+  NEW: [OPEN, CLOSED]
+  OPEN: [IN_PROGRESS, ESCALATED, CLOSED]
+  IN_PROGRESS: [ESCALATED, RESOLVED, CLOSED]
+  ESCALATED: [RESOLVED, CLOSED]
+  RESOLVED: [CLOSED, REOPENED]
+  CLOSED: [REOPENED]
+  REOPENED: [IN_PROGRESS]
+
+# ------------------------------------------------------------------- thresholds --
+# Documented defaults. The peer-relative baseline remains the primary
+# decision path; these are floors and shape parameters.
+thresholds:
+  fast_closure_seconds: 180          # v1 hardcode; EG-01 now uses robust z vs peers
+  note_min_words: 20                 # v1 hardcode; EG-02/EG-10 use this as a floor
+  max_closures_30min: 25             # v1 hardcode; EG-12 uses vs soc_hours + plausibility
+  cluster_similarity: 0.88           # v1 hardcode; now LSH membership then TF-IDF
+  repeat_count: 5                    # v1 hardcode; EG-05 uses vs base rate
+  repeat_window_days: 14
+
+  # Declared-KPI reporting tolerance for EG-14 (declared vs recomputed).
+  kpi_relative_tolerance: 0.05
+
+  # EG-08 SLA bunching: closures clustering just under the SLA target.
+  sla_bunch_window_ratio: 0.10
+
+  # EG-09 backlog washing: fraction of period-end windows that count as
+  # boundary massing.
+  backlog_window_hours: 48
+
+  # NS-05 implausibly low activity, expressed as a fraction of cohort median.
+  low_activity_ratio: 0.20
+
+  # Human plausibility for EG-12: max closures per analyst per hour.
+  max_closures_per_analyst_hour: 6
+
+# ----------------------------------------------------------------------- ramps --
+# |z| at or below z0 maps to 0; at or above z1 maps to 1; linear between.
+ramps:
+  z0: 2.0
+  z1: 5.0
+
+# ----------------------------------------------------------------- dimensions --
+# Weights for the eight capability dimensions. Must sum to 1.0.
+dimension_weights:
+  TD: 0.14    # Threat Detection
+  INV: 0.16   # Investigation
+  ESC: 0.16   # Escalation
+  IR: 0.14    # Incident Response
+  SO: 0.12    # Security Operations
+  GOV: 0.12   # Governance and Oversight
+  OD: 0.10    # Operational Discipline
+  CR: 0.06    # Cyber Resilience
+
+# --------------------------------------------------------------------- targets --
+sla_targets:
+  CRITICAL: 900      # 15 minutes
+  HIGH: 3600         # 1 hour
+  MEDIUM: 14400      # 4 hours
+  LOW: 43200         # 12 hours
+
+# ------------------------------------------------------------- peer baselines --
+n_min: 30              # below this, the n-term of confidence is n/n_min
+min_peers: 8           # below this, fall back to a covariate-adjusted model
+bootstrap_draws: 400
+dirichlet_draws: 400
+
+# ------------------------------------------------------------ multiple testing --
+fdr_q: 0.05            # Benjamini-Hochberg, per entity per cycle
+
+# --------------------------------------------------------------------- tiers --
+# Attention tiers. NOT_ASSESSABLE is a SEPARATE state, not a low tier: an
+# entity that cannot be assessed must not be ranked as though it were low risk
+# (plan §6.3).
+tier_cutpoints:
+  T1: 0.75
+  T2: 0.50
+  T3: 0.25
+  T4: 0.00
+
+# --------------------------------------------------------------------- scoring --
+# Capped noisy-OR: dim = 1 - Π(1 - w_f × min(family_f, cap)). The cap is what
+# stops correlated indicators inside one family double-counting.
+family_caps:
+  rapid_thin_closure: 0.60
+  escalation_integrity: 0.60
+  governance_records: 0.60
+  metric_gaming: 0.60
+  throughput_process: 0.60
+  timestamp_integrity: 0.60
+  recurrence: 0.60
+  coverage: 0.60
+  record_integrity: 0.60
+
+egi_families:         # execution-gap families -> EGI
+  - rapid_thin_closure
+  - escalation_integrity
+  - governance_records
+  - metric_gaming
+  - throughput_process
+  - timestamp_integrity
+  - recurrence
+nsi_families:         # negative-space families -> NSI
+  - coverage
+  - record_integrity
+
+# ------------------------------------------------------------------ data trust --
+# DTS is derived from these. Low data trust suppresses confidence globally
+# rather than being scored as an independent signal.
+dq_components:
+  completeness: 0.25
+  validity: 0.20
+  timeliness: 0.15
+  consistency: 0.15
+  uniqueness: 0.15
+  mapping_confidence: 0.10
+
+dts_floor: 0.20       # below this DTS, confidence is capped hard
+
+# ----------------------------------------------------------------- review packs --
+review_pack:
+  n_target: 20
+  n_control: 10
+  max_per_cluster: 3
+  max_per_analyst: 3
+  ht_confidence_level: 0.95
+
+# ----------------------------------------------------------------- assessment --
+# Per-dimension assessability (plan §4.4). Present here so policy can tighten
+# or relax coverage expectations without code changes.
+assessability:
+  Threat Detection:
+    min_tier: B
+    required_fields: [alert.mitre_tactic, alert.event_ts]
+  Investigation:
+    min_tier: A
+    required_fields: [case.disposition, note_store.redacted_text]
+  Escalation:
+    min_tier: A
+    required_fields: [escalation]
+  Incident Response:
+    min_tier: A
+    required_fields: [case.closed_at, case.root_cause_action]
+  Security Operations:
+    min_tier: B
+    required_fields: [case_event, entity.declared_open]
+  Governance and Oversight:
+    min_tier: B
+    required_fields: [submission, record_version]
+  Operational Discipline:
+    min_tier: A
+    required_fields: [case_event.ts]
+  Cyber Resilience:
+    min_tier: C
+    required_fields: [asset, telemetry_daily]
+
+# ----------------------------------------------------------- sovereign defaults --
+misc:
+  seed: 42
+  session_timeout_min: 30
+  # Rotating indicator subsets with a fixed unannounced core (plan §10).
+  rotating_subset_fraction: 0.25
+  fixed_core_size: 5

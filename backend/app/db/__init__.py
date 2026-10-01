@@ -1,0 +1,1 @@
+"""Storage layer: SQLite (state of record) and DuckDB/Parquet (evidence of record)."""

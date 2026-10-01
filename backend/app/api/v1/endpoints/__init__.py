@@ -1,0 +1,1 @@
+"""Endpoint modules. Each router maps to exactly one service (plan §5)."""
