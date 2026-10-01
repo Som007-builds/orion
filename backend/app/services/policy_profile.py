@@ -261,11 +261,16 @@ class PolicyProfileService:
         if row:
             import json
 
+            # `definition` is stored as canonical JSON text, so it has to be
+            # parsed before the effective date can be read out of it.
+            definition = json.loads(row["definition"])
             return PolicyProfile(
                 profile_id=row["profile_id"],
                 version=row["version"],
-                effective_from=date.fromisoformat(str(row["definition"].get("effective_from", "2026-01-01"))),
-                definition=json.loads(row["definition"]),
+                effective_from=date.fromisoformat(
+                    str(definition.get("effective_from", "2026-01-01"))
+                ),
+                definition=definition,
                 content_hash=row["content_hash"],
                 signature=row["signature"],
             )

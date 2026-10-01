@@ -17,11 +17,11 @@
 
 **Status key:** `⬜` not started · `🟡` in progress · `✅` complete · `⛔` blocked by another dev
 
-**Last update:** Dev 2 — Phase 4 & 7 complete (see commit history for who changed what)
+**Last update:** Dev 2 — Phases 0–5 & 7 complete; assessability started (see commit history for who changed what)
 
 ---
 
-## Dev 1 — Frontend Lead
+## Dev 1 — Frontend Lead Hula
 
 Owns `frontend/**`. Blocked on Dev 2's `/openapi.json` **for data only** — scaffolding is unblocked now.
 
@@ -42,7 +42,7 @@ Owns `frontend/**`. Blocked on Dev 2's `/openapi.json` **for data only** — sca
 
 ---
 
-## Dev 2 — Core Backend Lead *(me)*
+## Dev 2 — Core Backend Lead chom
 
 Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deploy/`.
 
@@ -55,9 +55,9 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.2 | Schema | 8 Pydantic modules incl. **frozen** `indicator.py` | ✅ | invariants tested |
 | 2.3 | Audit | Hash-chained append-only ledger | ✅ | tamper detected at `seq=1` |
 | 2.4 | Privacy | HMAC pseudonymisation + note redaction | ✅ | per-entity salted; zero PII leakage |
-| 2.5 | Ingestion | 10-stage pipeline, quarantine, DQ score | 🟡 | **next** |
-| 2.6 | Ingestion | Vendor mapping YAML + fuzzy assistant | ⬜ | blocked by 2.5 |
-| 2.7 | Assessability | Per-dimension matrix | ⬜ | needs 2.5 |
+| 2.5 | Ingestion | 10-stage pipeline, quarantine, DQ score | ✅ | 8 formats, 13-section smoke green; DQ tier A verified |
+| 2.6 | Ingestion | Vendor mapping YAML + fuzzy assistant | ✅ | Splunk + Elastic profiles; suggests, never applies |
+| 2.7 | Assessability | Per-dimension matrix | 🟡 | **in progress now** |
 | 2.7 | Policy | Signed versioned policy profiles | ✅ | `policy_nccipc_default.yaml` |
 | 2.7 | Baselines | LOO median/MAD + EB shrinkage + ranks | ✅ | MAD/IQR/stdev fallback added |
 | 2.8 | Indicators | P0 EG-01…EG-11 | ⬜ | needs 2.5 |
@@ -70,7 +70,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | ⛔ needs OQ-9 |
 | 2.15 | Trends | Trends + change points | ⬜ | |
 | 2.16 | P1 | EG-12…EG-17, NS-03/06 | ⬜ | |
-| 2.17 | Ops | Sovereignty check, bundle, SBOM | ⬜ | high value, keep early |
+| 2.17 | Ops | Sovereignty check, bundle, SBOM | 🟡 | promoted: do right after 2.8 |
 | 2.18 | Tests | Full suite | ⬜ | |
 | 2.19 | Integrate | Dev 3 handoff + E2E demo | ⬜ | |
 
@@ -78,7 +78,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 
 ---
 
-## Dev 3 — ML & Validation Lead
+## Dev 3 — ML & Validation Lead  Joy
 
 Owns `backend/app/ml/**`, `backend/eval/**`. **Fully unblocked** — frozen contracts shipped and tested.
 
@@ -110,7 +110,7 @@ Owns `backend/app/ml/**`, `backend/eval/**`. **Fully unblocked** — frozen cont
 
 | Blocker | Owner | Blocks | Status |
 |---|---|---|---|
-| **OQ-9** Ed25519 key custody — offline signer? hardware token? | Dev 2 | 2.13, 2.14 signed exports & packs | ⛔ open |
+| **OQ-9** Ed25519 key custody — offline signer? hardware token? | Dev 2 | 2.13, 2.14 signed exports & packs | ⛔ open — needed by hour 20 |
 | **OQ-10** HMAC key rotation — needs Dev 3 agreement | Dev 2 + Dev 3 | rotation policy | ⛔ open |
 | **OQ-6** Existing egress layer to reuse? | Dev 2 | 2.17 sovereignty check | ⛔ open |
 | **OQ-8** Keep Alpha/Beta/Gamma as SOCSim presets? | Dev 3 | 3.2 | ⛔ open |
@@ -149,7 +149,7 @@ Two conventions so three people don't collide:
 | Milestone | Target | Status |
 |---|---|---|
 | Foundation + frozen contracts | hour 0–3 | ✅ |
-| Data in (ingestion, DQ, assessability) | hour 8.5 | 🟡 |
+| Data in (ingestion, DQ, assessability) | hour 8.5 | 🟡 ingestion+ DQ done, assessability in progress |
 | Signal out (indicators, scoring) | hour 14 | ⬜ |
 | **CUT LINE — demo-ready** | **hour 14** | ⬜ |
 | OpenAPI frozen → Dev 1 data unblocked | hour 18 | ⬜ |

@@ -1,0 +1,116 @@
+# Splunk alert/case export — vendor mapping profile v1.
+#
+# Loaded by `app.services.mapping_assistant`. A human approves every mapping;
+# the fuzzy assistant only proposes (plan §4, CHANGELOG B.2).
+#
+# Column keys on the left are **canonical Orion column names**, taken verbatim
+# from the evidence-lake DDL in `app/db/duckdb_client.py`. That is deliberate:
+# a profile that named an approximation (`source_ip` for `source_ip_pseudo`)
+# would let a mapping resolve against a column that does not exist, and the
+# approved mapping would then silently drop the field it claimed to carry.
+#
+# Real CSE exports drift constantly, so this file is versioned and registered in
+# SQLite once approved. Never edit a profile in place after approval.
+
+# Table blocks are keyed by the canonical Orion table name (`alert_record`,
+# `case_record`), not by the vendor's own name for the export. A block keyed
+# `alerts` resolved to nothing: `columns_for()` found no match, the mapping came
+# back empty, and the file silently loaded with every column missing. Keying by
+# the canonical name means a profile block and a destination table are the same
+# identifier, and a typo fails loudly at load.
+
+profile_id: splunk_alerts_v1
+vendor: Splunk
+version: 1
+timezone: Asia/Kolkata
+
+tables:
+  alert_record:
+    primary_key: alert_id
+    columns:
+      alert_id:
+        source: _id
+        type: string
+        required: true
+      event_ts:
+        source: timestamp
+        type: timestamp
+        required: false        # some Splunk exports omit it; never imputed
+      title:
+        source: search_name
+        type: string
+      severity_raw:
+        source: urgency
+        type: string
+        required: true
+      rule_id:
+        source: search_id
+        type: string
+      source_ip_pseudo:
+        source: src
+        type: ip
+        pseudonymise: true
+      destination_asset_id:
+        source: dest
+        type: hostname
+        pseudonymise: true
+      mitre_tactic:
+        source: mitre_tactic
+        type: string
+      mitre_technique_id:
+        source: mitre_technique
+        type: string
+      status:
+        source: status
+        type: string
+      auto_closed_flag:
+        source: auto_closed
+        type: bool
+      case_id:
+        source: case_id
+        type: string
+
+  case_record:
+    primary_key: case_id
+    columns:
+      case_id:
+        source: case_id
+        type: string
+        required: true
+      created_at:
+        source: opened_at
+        type: timestamp
+        required: true
+      closed_at:
+        source: closed_at
+        type: timestamp
+      investigation_duration_sec:
+        source: investigation_duration_sec
+        type: int          # derived by the pipeline when absent, never imputed
+      analyst_pseudo:
+        source: assigned_to
+        type: string
+        pseudonymise: true
+      closed_by_pseudo:
+        source: closed_by
+        type: string
+        pseudonymise: true
+      actor_type:
+        source: closed_by_type
+        type: string
+      severity_norm:
+        source: urgency
+        type: string
+      escalation_level:
+        source: escalation_level
+        type: int
+      disposition:
+        source: disposition
+        type: string
+      root_cause_action:
+        source: root_cause
+        type: string
+      note_ref:
+        source: notes
+        type: text
+        redact: true        # free text: redacted, stored in note_store, referenced

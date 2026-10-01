@@ -88,8 +88,36 @@ CREATE TABLE IF NOT EXISTS submission (
     declared_kpis TEXT,
     dq_score      REAL CHECK (dq_score IS NULL OR (dq_score BETWEEN 0.0 AND 1.0)),
     version       INTEGER NOT NULL,
+    -- Set when a human approves a mapping for THIS submission. Kept separate
+    -- from `schema_profile`, which is the vendor profile detected at intake:
+    -- a submission-scoped approval is a distinct profile keyed
+    -- "<vendor_profile>__<submission_id>", and without this column the read
+    -- side could only look it up under the detected vendor id and never find it.
+    approved_profile_id TEXT,
     UNIQUE (entity_id, version)
 );
+
+-- ------------------------------------------------------------ submission_file --
+-- One row per uploaded file. Added in schema v2: the original pipeline
+-- recovered the file list by scanning the ledger for the matching
+-- SUBMISSION_RECEIVED entry, which meant a submission whose ledger entry was
+-- unreadable could not be loaded at all. The file list is part of the
+-- submission, not a side effect of the audit trail.
+--
+-- `safe_name` is the sanitised basename and is the only filename that reaches
+-- a query. The examiner-supplied original is kept for the record but is never
+-- used to build a path (upload_security.SanitisedFile re-derives the path).
+CREATE TABLE IF NOT EXISTS submission_file (
+    submission_id  TEXT NOT NULL REFERENCES submission(submission_id),
+    safe_name      TEXT NOT NULL,
+    original_name  TEXT NOT NULL,
+    detected_format TEXT NOT NULL,
+    n_bytes        INTEGER NOT NULL CHECK (n_bytes > 0),
+    content_hash   TEXT NOT NULL,
+    ordinal        INTEGER NOT NULL,
+    PRIMARY KEY (submission_id, safe_name)
+);
+CREATE INDEX IF NOT EXISTS ix_submission_file ON submission_file(submission_id, ordinal);
 
 -- ---------------------------------------------------------- record_version --
 -- Per-record hash across submissions. Backs EG-11 (retroactive edits) and
@@ -491,6 +519,21 @@ def init_db() -> None:
     settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     conn = get_connection()
     conn.executescript(_DDL)
+    # Column added after v2 was already applied anywhere, so the CREATE TABLE
+    # IF NOT EXISTS above will not add it. ALTER is idempotent via the guard.
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(submission)")
+    }
+    if "approved_profile_id" not in columns:
+        conn.execute("ALTER TABLE submission ADD COLUMN approved_profile_id TEXT")
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
+        "VALUES (3, datetime('now'), 'submission.approved_profile_id added')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
+        "VALUES (2, datetime('now'), 'submission_file added')"
+    )
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
         "VALUES (1, datetime('now'), 'initial v2 schema')"

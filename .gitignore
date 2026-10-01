@@ -17,6 +17,7 @@ htmlcov/
 # Backend runtime artefacts
 backend/data/sqlite/
 backend/data/parquet/
+backend/data/staging/
 backend/data/keys/*.key
 backend/data/packs/staged/
 backend/dist/
@@ -24,6 +25,11 @@ backend/wheelhouse/
 backend/*.db
 backend/*.db-wal
 backend/*.db-shm
+
+# Scratch smoke scripts and their output (removed before hand-off)
+backend/_smoke_*.py
+backend/_out.txt
+backend/_smoke_data/
 
 # Node / Next.js
 node_modules/

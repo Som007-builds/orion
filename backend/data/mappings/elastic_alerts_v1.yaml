@@ -1,0 +1,105 @@
+# Elastic Security alert/case export — vendor mapping profile v1.
+#
+# Second vendor profile, covering a materially different schema shape from
+# Splunk: flat event documents, `kibana.alert.*` fields, and severity as a
+# keyword rather than a numeric urgency.
+#
+# Column keys on the left are canonical Orion column names, verbatim from the
+# evidence-lake DDL. See `splunk_alerts_v1.yaml` for why.
+
+# Table blocks are keyed by the canonical Orion table name, for the same reason
+# as the Splunk profile: a block key that is not a `TABLE_CONTRACTS` key
+# resolves to an empty mapping rather than an error.
+
+profile_id: elastic_alerts_v1
+vendor: Elastic
+version: 1
+timezone: Asia/Kolkata
+
+tables:
+  alert_record:
+    primary_key: alert_id
+    columns:
+      alert_id:
+        source: _id
+        type: string
+        required: true
+      event_ts:
+        source: "@timestamp"
+        type: timestamp
+        required: false
+      title:
+        source: kibana.alert.rule.name
+        type: string
+      severity_raw:
+        source: kibana.alert.severity
+        type: string
+        required: true
+      rule_id:
+        source: kibana.alert.rule.uuid
+        type: string
+      source_ip_pseudo:
+        source: source.ip
+        type: ip
+        pseudonymise: true
+      destination_asset_id:
+        source: destination.domain
+        type: hostname
+        pseudonymise: true
+      mitre_tactic:
+        source: kibana.alert.rule.threat
+        type: string
+      mitre_technique_id:
+        source: threat.technique.id
+        type: string
+      status:
+        source: kibana.alert.workflow.status
+        type: string
+      auto_closed_flag:
+        source: kibana.alert.auto_closed
+        type: bool
+
+  case_record:
+    primary_key: case_id
+    columns:
+      case_id:
+        source: cases:id
+        type: string
+        required: true
+      created_at:
+        source: cases:created_at
+        type: timestamp
+        required: true
+      closed_at:
+        source: cases:closed_at
+        type: timestamp
+      investigation_duration_sec:
+        source: cases:duration_ms
+        type: int
+      analyst_pseudo:
+        source: cases:owner_username
+        type: string
+        pseudonymise: true
+      closed_by_pseudo:
+        source: cases:closed_by
+        type: string
+        pseudonymise: true
+      actor_type:
+        source: cases:closed_by_type
+        type: string
+      severity_norm:
+        source: cases:severity
+        type: string
+      escalation_level:
+        source: cases:escalation_level
+        type: int
+      disposition:
+        source: cases:disposition
+        type: string
+      root_cause_action:
+        source: cases:root_cause
+        type: string
+      note_ref:
+        source: cases:description
+        type: text
+        redact: true
