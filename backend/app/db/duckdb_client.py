@@ -89,7 +89,17 @@ CREATE TABLE IF NOT EXISTS case_event (
 );
 
 -- plan §3.9. Required by EG-06 (absence of escalation), EG-07 (rate).
+--
+-- `entity_id` is injected at load, like it is for alert_record and case_record.
+-- It was missing originally, on the reasoning that an escalation could be scoped
+-- through its case. That holds for *finding* an escalation but not for scoping
+-- one to an entity, and EG-06 needs the scoping: `case_id` is unique only
+-- within a submission, so a lookup of "case ids that were escalated" across the
+-- whole lake returns every other entity's escalations too. Peer entities with
+-- overlapping case-numbering then mask each other's missing escalations, and
+-- EG-06 under-reports precisely where a cohort comparison is being made.
 CREATE TABLE IF NOT EXISTS escalation (
+    entity_id       VARCHAR,
     escalation_id   VARCHAR,
     case_id         VARCHAR,
     ts              TIMESTAMP,
@@ -118,6 +128,16 @@ CREATE TABLE IF NOT EXISTS alert_case (
     link_type VARCHAR CHECK (link_type IS NULL OR
                             link_type IN ('explicit','inferred'))
 );
+"""
+
+#: Additive migrations, executed after `_EVIDENCE_DDL`. New columns are added
+#: here rather than by demanding a full rebuild of the evidence lake.
+_EVIDENCE_MIGRATIONS = """
+-- 1.0.0: `escalation` gained `entity_id` so that EG-06 can scope escalation
+-- records to the entity whose submission produced them. Without it, case_id
+-- collisions across entities caused peer cohorts to look like they were not
+-- missing escalations.
+ALTER TABLE escalation ADD COLUMN IF NOT EXISTS entity_id VARCHAR;
 """
 
 
@@ -236,9 +256,18 @@ class DuckDBClient:
             conn.execute(statement)
 
     def init(self) -> None:
-        """Create evidence tables. Requires the write lock."""
+        """Create evidence tables, then bring an existing file up to date.
+
+        `CREATE TABLE IF NOT EXISTS` silently leaves a previously created file on
+        the old shape, so a column added to the DDL is invisible to anyone whose
+        evidence lake already exists. The additive migrations below close that
+        gap; a rebuild is not required, and re-ingesting a submission to pick up
+        a new column would be an absurd thing to ask of a supervisory tool.
+        """
         with self.writer() as conn:
             self._execute_ddl(conn)
+            for statement in self._split_statements(_EVIDENCE_MIGRATIONS):
+                conn.execute(statement)
 
     def export_parquet(self, table: str, name: str | None = None) -> Path:
         """Materialise an evidence table to Parquet (the portable form)."""

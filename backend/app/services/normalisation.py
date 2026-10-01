@@ -655,6 +655,11 @@ TABLE_CONTRACTS: dict[str, tuple[ColumnRule, ...]] = {
         _c("note_ref", "string", redact=True),
     ),
     "escalation": (
+        # See `duckdb_client.escalation`: injected, because an escalation is
+        # only attributable once the pipeline says whose submission it came
+        # from. `case_id` alone cannot scope it -- case numbers are unique per
+        # submission, not across the lake, and peer cohorts routinely overlap.
+        _c("entity_id", "string", required=True, injected=True),
         _c("escalation_id", "string", required=True),
         _c("case_id", "string", required=True),
         _c("ts", "timestamp", polars_type=_TS),

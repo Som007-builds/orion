@@ -17,7 +17,7 @@
 
 **Status key:** `⬜` not started · `🟡` in progress · `✅` complete · `⛔` blocked by another dev
 
-**Last update:** Dev 2 — Phases 0–5, 6 & 7 complete; indicators started (see commit history for who changed what)
+**Last update:** Dev 2 — Phase 8 complete (6 P0 indicators + 4 NS stubs, 14-section smoke green). **Schema change S-4 affects your queries — see below.** Scoring next.
 
 ---
 
@@ -60,9 +60,9 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.7 | Assessability | Per-dimension matrix | ✅ | 8 dims, §4.4 verbatim; never-submitted vs blank distinguished |
 | 2.7 | Policy | Signed versioned policy profiles | ✅ | `policy_nccipc_default.yaml` |
 | 2.7 | Baselines | LOO median/MAD + EB shrinkage + ranks | ✅ | MAD/IQR/stdev fallback added |
-| 2.8 | Indicators | P0 EG-01…EG-11 | 🟡 | **in progress now** |
-| 2.8 | Indicators | NS-01/02/04/05 **stubs** | ⬜ | same file; unblocks Dev 3 integration |
-| 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ⬜ | needs 2.7, 2.8 |
+| 2.8 | Indicators | P0 EG-01…EG-11 | ✅ | 6 indicators in `app/services/rules_engine.py`; 14-section smoke green. **3 bugs fixed that would have shipped** — see notes below |
+| 2.8 | Indicators | NS-01/02/04/05 **stubs** | ✅ | `rules_engine.ns_stub()`. `missing_fields` deliberately **empty** — an unwritten detector is not an absence of evidence. Drop real code in behind the same signature |
+| 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | 🟡 | **next**. `rules_engine.run_all()` is the input |
 | 2.10 | Evidence | Finding cards + counterfactual | ⬜ | |
 | 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
 | 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ⬜ | **unblocks Dev 1** |
@@ -70,7 +70,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | ⛔ needs OQ-9 |
 | 2.15 | Trends | Trends + change points | ⬜ | |
 | 2.16 | P1 | EG-12…EG-17, NS-03/06 | ⬜ | |
-| 2.17 | Ops | Sovereignty check, bundle, SBOM | 🟡 | promoted: do right after 2.8 |
+| 2.17 | Ops | Sovereignty check, bundle, SBOM | ⬜ | promoted: do right after 2.9 |
 | 2.18 | Tests | Full suite | ⬜ | |
 | 2.19 | Integrate | Dev 3 handoff + E2E demo | ⬜ | |
 
@@ -110,12 +110,34 @@ Owns `backend/app/ml/**`, `backend/eval/**`. **Fully unblocked** — frozen cont
 
 | Blocker | Owner | Blocks | Status |
 |---|---|---|---|
-| **OQ-9** Ed25519 key custody — offline signer? hardware token? | Dev 2 | 2.13, 2.14 signed exports & packs | ⛔ open — needed by hour 20 |
+| **OQ-9** Ed25519 key custody | Dev 2 | 2.13, 2.14 signed exports & packs | ✅ **resolved** — host-local key, generated on first use into `backend/data/keys/` (gitignored), never leaves the machine. Signed artefacts are labelled *attributable to the signing host, not to an individual* — we do not claim non-repudiation we cannot back. Revisit if NCIIPC supplies a PKI or token. |
 | **OQ-10** HMAC key rotation — needs Dev 3 agreement | Dev 2 + Dev 3 | rotation policy | ⛔ open |
 | **OQ-6** Existing egress layer to reuse? | Dev 2 | 2.17 sovereignty check | ⛔ open |
 | **OQ-8** Keep Alpha/Beta/Gamma as SOCSim presets? | Dev 3 | 3.2 | ⛔ open |
 | Handle types for NS functions | Dev 2 proposes, Dev 3 confirms | 3.5–3.8 | 🟡 proposed in handover |
 | `nlp_auditor` per-entity or per-cluster? | Dev 2 proposes per-entity, Dev 3 confirms | 3.11 | 🟡 proposed in handover |
+
+---
+
+## Schema changes Dev 3 should know about
+
+Cross-cutting, so they're here and not buried in a commit. Anything below landed in Phase 8.
+
+| # | Change | Why | What it means for Dev 3 |
+|---|---|---|---|
+| S-4 | **DuckDB `escalation` gained `entity_id`** (injected at load, like `alert_record`/`case_record`) | `case_id` is unique *within a submission*, not across the lake. EG-06 was looking up "which case ids were escalated" across all entities, so one entity's escalation vouched for another's case of the same number and peer cohorts masked each other's missing escalations. EG-06 under-reported exactly where it compares entities. | Query `escalation` **by `entity_id`**. If you write escalation joins, join on `(entity_id, case_id)` — never `case_id` alone. Added via an additive `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, so existing lakes migrate on next `init()`; no rebuild. |
+| S-4b | `record_version.record_hash` now hashes a **digest of the redacted note text** instead of `note_ref` | `note_ref` is a fresh random id per load, so it was in the hash and *every* record moved on *every* resubmission — EG-11 would have reported 100% retroactive edits, forever. Rewriting a justification still moves the hash (signal preserved); reloading unchanged text does not. | Nothing. Just don't reintroduce generated identifiers into content hashes. |
+| — | `assessability.field_requirement()` is the **only** supported way to build a `FieldRequirement` | `FieldRequirement.in_state_store` defaults to `False`, and forgetting it is silent: the field gets probed against DuckDB, `note_store` is never in `tables_present`, and the indicator declines on evidence that is sitting right there in SQLite. This bit EG-02, EG-09 and EG-11 at once. | Use `field_requirement(table, column, label=...)` rather than constructing the model directly. |
+
+### Three bugs Phase 8 caught that would otherwise have shipped
+
+Worth recording because the *shape* of each is the point — all three are indicators that would have lied confidently:
+
+1. **EG-06 reported "100% of critical closures unescalated" from an entity that never sent an escalation export.** A finding built entirely out of the evidence needed to refute it. Fixed with `absence_disqualifies` on `IndicatorSpec` — a required field whose absence forces `NOT_ASSESSABLE` rather than `PARTIAL`, because `Partial` is only honest when the remaining evidence still supports an observation.
+2. **EG-11 reported every record as retroactively edited**, for the hash reason above. An indicator that always fires is as useless as one that never fires, and worse, it teaches the examiner to ignore the card.
+3. **Every SQLite-side requirement (`note_store`, `submission`, `record_version`) was probed as a DuckDB table**, so all three indicators declined on data that was present. Fixed at the source (S-4b row above), not at each call site.
+
+Also fixed: stored evidence queries now `CAST(? AS TIMESTAMP)` their period bounds. The reproduction test caught this — a stored record is JSON, so bounds re-arrive as strings and DuckDB won't compare `TIMESTAMP` to `VARCHAR`. A re-runnable query has to stand alone.
 
 ---
 

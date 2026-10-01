@@ -261,16 +261,27 @@ These are **not** optional — they are why v2 exists. Please implement as speci
 2. Automation-generated template work is **not itself a weakness**. The question is whether a **human reviewed high-severity closures** (EG-01/EG-02/EG-06).
 3. Never report an automation pattern as a finding without the human-review question attached.
 
-### 4.4 Stubs I am shipping, and why
+### 4.4 Stubs I am shipping, and why — **replace these**
 
-I write stubs for NS-01/02/04/05 so the pipeline runs end to end without waiting on you. They return:
+Stubs for NS-01/02/04/05 are now live in `rules_engine.py`, so the pipeline runs end to end without waiting on you. `rules_engine.ns_stub(indicator_id, entity_id, period_start, period_end)` returns:
 
 ```python
 assessability = Assessability.NOT_ASSESSABLE
-value = None
+value          = None
+missing_fields = []          # <- deliberately empty, see below
+required_fields = ["..."]    # <- what your detector will need
+notes          = "REFERENCE STUB: ..."   # greppable prefix
 ```
 
+`RulesEngine.is_stub(result)` detects them via that marker, so a real detector declining for a real gap is never confused with "we never wrote this". Keep the marker until you have real code, then drop it.
+
 **They never return a plausible placeholder number.** A stub returning a fake statistic is worse than an honest gap, because it flows into EGI/NSI and silently corrupts scoring. Swap the bodies, keep the signatures.
+
+**Why `missing_fields` is empty and `required_fields` is not.** `missing_fields` means *we measured and this entity did not supply it*. A stub measures nothing, so it cannot claim anything is missing — as far as anyone knows, that entity submitted a perfect telemetry export and we simply never looked. Putting anything in `missing_fields` would read on the card as *this CSE sent us nothing*, which is an accusation we have no basis for. Populate `required_fields` with what your detector needs, and only populate `missing_fields` once you are actually probing presence.
+
+**When you build real requirements, use `assessability.field_requirement(table, column, label=...)` — do not construct `FieldRequirement` directly.** `in_state_store` defaults to `False`, and getting it wrong is completely silent: the requirement is probed against DuckDB, `note_store` is never in `tables_present`, and your detector declines on evidence sitting in SQLite right in front of it. This bit three of my indicators at once before I found it.
+
+**Use `absence_disqualifies` on `IndicatorSpec`** when a required field's absence must force `NOT_ASSESSABLE` rather than `PARTIAL`. `Partial` is only honest when the remaining evidence still supports an observation. NS-02 needs it: absent alert categories are exactly the claim, so without the missing categories being present-then-gone there is nothing to observe.
 
 ### 4.5 Your validation harness — independence requirement
 
@@ -482,6 +493,16 @@ with d.reader() as c:
 ```
 
 Evidence tables you read: `alert_record`, `case_record`, `case_event`, `escalation`, `telemetry_daily`, `alert_case`.
+
+### ⚠️ `escalation` now carries `entity_id` (Phase 8)
+
+**Query `escalation` by `entity_id`. Join on `(entity_id, case_id)` — never `case_id` alone.**
+
+`case_id` is unique *within a submission*, not across the lake. Two CSEs both numbering their cases `0001`…`0060` is the normal case, not an edge case. Without `entity_id`, EG-06 looked up "which case ids were escalated" across every entity, so a peer that properly escalated its case 0004 made the subject's identically-numbered, unescalated case look escalated too. The indicator under-reported precisely in the peer cohorts it exists to compare against.
+
+`entity_id` is injected at load, same as `alert_record` and `case_record`, so no mapping is needed for it. Added with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` — an existing evidence lake migrates on next `init()`, no rebuild required.
+
+`alert_case` has no `entity_id` and does not need one: it is a bridge whose endpoints already carry it, so it is scoped through its cases. `escalation` had no such endpoint that identifies the *submitting* entity.
 
 ---
 

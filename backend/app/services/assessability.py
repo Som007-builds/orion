@@ -681,6 +681,26 @@ def _tier_at_least(achieved: DataTier, required: DataTier) -> bool:
     return _TIER_ORDER[achieved] >= _TIER_ORDER[required]
 
 
+def field_requirement(
+    table: str, column: str | None = None, label: str | None = None
+) -> FieldRequirement:
+    """Build a `FieldRequirement` with `in_state_store` set correctly.
+
+    `FieldRequirement` defaults `in_state_store` to False because a caller that
+    forgets to set it is only wrong for the five SQLite tables. That failure is
+    silent: the requirement is then probed as a DuckDB table, the table is not in
+    `tables_present`, and the field reports `never_submitted` no matter what the
+    entity actually sent. An indicator built that way declines on evidence that
+    is sitting in the database in front of it.
+
+    The set of SQLite tables is knowledge this module already owns, so callers
+    outside it build requirements through here rather than repeating the list.
+    """
+    return FieldRequirement(
+        table, column, label=label, in_state_store=table in _STATE_TABLES
+    )
+
+
 def _achieved_tier(snap: EvidenceSnapshot) -> DataTier:
     """Highest tier the evidence actually reaches.
 
