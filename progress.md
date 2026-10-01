@@ -63,14 +63,15 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.8 | Indicators | P0 EG-01…EG-11 | ✅ | 6 indicators in `app/services/rules_engine.py`; 14-section smoke green. **3 bugs fixed that would have shipped** — see notes below |
 | 2.8 | Indicators | NS-01/02/04/05 **stubs** | ✅ | `rules_engine.ns_stub()`. `missing_fields` deliberately **empty** — an unwritten detector is not an absence of evidence. Drop real code in behind the same signature |
 | 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ✅ | `app/services/scoring_service.py`, 13-section smoke green. **4 more bugs caught** — see notes below |
-| 2.10 | Evidence | Finding cards + counterfactual | ⬜ | |
+| 2.10 | Evidence | Finding cards + counterfactual | ⬜ | **next** |
 | 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
 | 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ⬜ | **unblocks Dev 1** |
 | 2.13 | Export | Supervisory brief, signed | ⬜ | ⛔ needs OQ-9 key custody |
 | 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | ⛔ needs OQ-9 |
 | 2.15 | Trends | Trends + change points | ⬜ | |
 | 2.16 | P1 | EG-12…EG-17, NS-03/06 | ⬜ | |
-| 2.17 | Ops | Sovereignty check, bundle, SBOM | ⬜ | **next** |
+| 2.17 | Ops | Sovereignty check | ✅ | `backend/scripts/sovereignty_check.py` — zero outbound attempts over a full pipeline run, and the guard is proved able to deny. Bundle/SBOM/restore still ⬜ |
+| 2.17b | Ops | Offline bundle, wheelhouse, SBOM, restore | ⬜ | ⛔ after 2.10/2.11; sizing targets only, no measured perf claims |
 | 2.18 | Tests | Full suite | ⬜ | |
 | 2.19 | Integrate | Dev 3 handoff + E2E demo | ⬜ | |
 
@@ -149,6 +150,17 @@ Same reason as above — each of these produces a *confident wrong answer*, whic
 4. **All three service singletons ignored an explicitly passed policy.** `get_rules_engine(p)`, `get_baseline_service(p)` and `get_scoring_service(p)` returned the first-loaded instance no matter what the caller asked for, so a scoring pass could record one policy hash and compute under another. `content_hash` cannot detect this — it identifies the file a profile was loaded from, not the dict in hand. Now: no argument → shared instance; explicit policy → always a fresh service bound to exactly that policy.
 
 Also: the ledger now has a distinct `scoring_completed` action rather than sharing `run_completed` with the ingestion jobs, so "when was this entity last scored" is answerable without also matching every load. And a scoring run that falls below the share floor now says so in `caveats` rather than leaving a bare null tier for the API to render.
+
+### The sovereignty check polices itself
+
+`backend/scripts/sovereignty_check.py` runs startup → ingest → indicators → scoring → export with `socket.connect`, `connect_ex`, `sendto`, `create_connection`, `getaddrinfo`, `gethostbyname` and `urllib.request.urlopen` all replaced by a recorder that **also raises**. An attempt that was merely logged could still have succeeded, so the guard refuses rather than observes. DNS is included because a resolver lookup is already the first half of every exfiltration path, and `sendto` because UDP has no handshake to notice afterwards.
+
+Two things it does that a naive version would not, both because a check that cannot fail is not evidence:
+
+- **It proves the guard denies.** Sections 5 and 1b make real `create_connection` / `getaddrinfo` / `urlopen` calls and planted import/attribute sites and require them to be caught. A zero only means something next to a demonstrated non-zero.
+- **Its own scanner had a hole, and the self-test found it.** The static scan originally flagged `.connect` only when the *variable name* looked socket-y, which produced 42 false positives on this codebase's own `get_connection` and would have missed `s.connect(('10.0.0.1', 443))` entirely. Now every `.connect`/`.sendto` is collected and only demonstrably local bases (duckdb, sqlite) are classified out — the four real local sites are printed with file and line so the classification is reviewable. Recall stays at 100% and the judgement stays visible.
+
+Scope is stated in the output rather than glossed: this covers the exercised paths plus an AST scan of `app/`. It is evidence for the air-gap design, not a substitute for network-segmentation policy at the deployment site. Current result: 15 pipeline stages, **zero outbound attempts**, none of 34 known egress modules imported.
 
 ---
 
