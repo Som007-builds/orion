@@ -37,7 +37,12 @@ class LedgerAction(str, Enum):
     MAPPING_APPROVED = "mapping_approved"
     MAPPING_REJECTED = "mapping_rejected"
     RUN_TRIGGERED = "run_triggered"
+    # Scored separately from RUN_COMPLETED on purpose. Both are "a run finished",
+    # but an auditor filtering the ledger by action has to be able to ask "when
+    # was this entity last *scored*" without also matching every load job, and
+    # those two questions must not share a label.
     RUN_COMPLETED = "run_completed"
+    SCORING_COMPLETED = "scoring_completed"
     RUN_FAILED = "run_failed"
     POLICY_ACTIVATED = "policy_activated"
     PACK_STAGED = "pack_staged"

@@ -82,6 +82,74 @@ class PolicyProfile:
         return self.definition.get("family_caps", {})
 
     @property
+    def family_weights(self) -> dict[str, float]:
+        """Per-family weight `w_f` in the capped noisy-OR (plan §6.2 step 7).
+
+        Defaults to 0.5 for any family the policy does not name. The weight says
+        how much a single family can contribute to a dimension, and the cap says
+        how much of one family's own score can be used at all — the cap guards
+        against correlated indicators inside a family, the weight against one
+        family dominating a dimension that several families feed.
+        """
+        declared = self.definition.get("family_weights", {})
+        return {k: float(v) for k, v in declared.items()}
+
+    def family_weight(self, family: str) -> float:
+        return float(self.family_weights.get(family, 0.5))
+
+    def family_cap(self, family: str) -> float:
+        caps = self.family_caps
+        if family in caps:
+            return float(caps[family])
+        return 0.60
+
+    @property
+    def egi_families(self) -> list[str]:
+        return list(
+            self.definition.get(
+                "egi_families",
+                [
+                    "rapid_thin_closure",
+                    "escalation_integrity",
+                    "governance_records",
+                    "metric_gaming",
+                    "throughput_process",
+                    "timestamp_integrity",
+                    "recurrence",
+                ],
+            )
+        )
+
+    @property
+    def nsi_families(self) -> list[str]:
+        return list(self.definition.get("nsi_families", ["coverage", "record_integrity"]))
+
+    @property
+    def dts_floor(self) -> float:
+        """Below this DTS, indicator confidence is suppressed proportionally."""
+        return float(self.definition.get("dts_floor", 0.20))
+
+    @property
+    def min_measurable_share(self) -> float:
+        """Share of the §6.1 dimension weight that must be measurable to tier.
+
+        The cutpoints are calibrated against a full eight-dimension picture. A
+        submission that answers two of the eight cannot reach `T1` however bad it
+        looks, so a tier read off it is not a weaker version of the real tier --
+        it is a different and much vaguer claim wearing the same label. Below this
+        share the entity is reported `not_assessable` instead, and the dimension
+        scores behind it stay visible.
+        """
+        return float(self.definition.get("min_measurable_share", 0.50))
+
+    @property
+    def draws(self) -> dict[str, int]:
+        return {
+            "bootstrap": int(self.definition.get("bootstrap_draws", 400)),
+            "dirichlet": int(self.definition.get("dirichlet_draws", 400)),
+        }
+
+    @property
     def fdr_q(self) -> float:
         return float(self.definition.get("fdr_q", 0.05))
 

@@ -696,12 +696,20 @@ class RulesEngine:
         cohort_members: Iterable[str],
         metrics: dict[str, Metric],
         value: float | None,
+        n_obs: int = 0,
     ) -> tuple[Baseline, float | None, BaselineResult]:
         """Leave-one-out peer baseline plus the adverse-oriented robust z.
 
         The entity is excluded from its own peer set here as well as in
         `BaselineService.cohort_for`, because `peer_values` is built by the
         caller and a caller mistake must not be able to reintroduce it.
+
+        Steps 1 and 2 of plan §6.2 live here rather than in `scoring_service`,
+        because this is the only place the peer values exist. `effect_size` on
+        the result is therefore the robust z of the **EB-shrunk** estimate, not
+        of the raw one — which is the number an examiner should see, since a
+        single-case month genuinely carries less evidence than a sixty-case one.
+        `scoring_service` consumes it from step 3 onward.
         """
         members = set(cohort_members)
         peers = {
@@ -722,16 +730,16 @@ class RulesEngine:
         if value is None or not peers:
             return peer_baseline, None, baseline
 
-        scale, _method = self.bsl.robust_scale(list(peers.values()))
-        if not scale:
+        z = self.bsl.effect_size(value, baseline, n_obs=n_obs, shrink=True)
+        if z is None:
             # The cohort is a single repeated value. A deviation from it is real
-            # but has no z; the raw value against the peer median still reads.
+            # but cannot be expressed as a z; the raw value against the peer
+            # median still reads, and `None` says so rather than inventing one.
             return peer_baseline, None, baseline
 
-        median = baseline.median if baseline.median is not None else float(statistics.median(list(peers.values())))
-        # The one place the sign is applied, for every indicator.
-        effect = spec.adverse_sign * (value - median) / scale
-        return peer_baseline, round(effect, 6), baseline
+        # The one place the sign is applied, for every indicator: a positive
+        # effect size always means adverse.
+        return peer_baseline, round(spec.adverse_sign * z, 6), baseline
 
     def _assemble(
         self,
@@ -789,7 +797,7 @@ class RulesEngine:
         n = metric.n
 
         peer_baseline, effect, baseline = self._baseline_and_effect(
-            spec, entity_id, cohort_members, metrics, metric.value
+            spec, entity_id, cohort_members, metrics, metric.value, n_obs=metric.n
         )
 
         dts_term, dts_assessability, dts_note = self._dts(entity_id, period)
@@ -1510,8 +1518,15 @@ _engine: RulesEngine | None = None
 
 
 def get_rules_engine(policy=None) -> RulesEngine:
-    """Module-level accessor, matching the other services."""
+    """Module-level accessor, matching the other services.
+
+    A passed policy is honoured rather than folded into the singleton, for the
+    same reason as the other services: a detector calibrated against one policy
+    profile must not be silently reused under another.
+    """
     global _engine
+    if policy is not None:
+        return RulesEngine(policy=policy)
     if _engine is None:
-        _engine = RulesEngine(policy=policy)
+        _engine = RulesEngine()
     return _engine

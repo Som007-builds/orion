@@ -282,46 +282,80 @@ class BaselineService:
         self,
         entity_value: float,
         cohort_values: list[float],
+        n_obs: int,
         prior_mean: float | None = None,
         prior_strength: float = 10.0,
     ) -> float:
-        """Empirical-Bayes shrinkage toward the cohort mean, weighted by n.
+        """Empirical-Bayes shrinkage of an entity's estimate toward a prior.
 
         A single observation should not be trusted as strongly as thirty, so a
-        thin peer set pulls the estimate toward the prior. This is what stops one
-        lucky period from producing a confident finding.
+        thin evidence base pulls the estimate toward the cohort. This is what
+        stops one lucky period from producing a confident finding.
 
-        posterior = (n * cohort_mean + k * prior_mean) / (n + k)
+            posterior = (n_obs * entity_value + k * prior_mean) / (n_obs + k)
+
+        `n_obs` is the number of observations *behind the entity's own value*, so
+        it weights the entity against the prior; `prior_strength` `k` is how many
+        observations' worth of belief the prior carries.
+
+        The entity's value belongs in the numerator. Weighting the *cohort* mean
+        there instead — the earlier version of this — made the result collapse to
+        the cohort mean for every entity, because `prior_mean` defaults to the
+        cohort mean too. `entity_value` appeared only in the empty-cohort branch,
+        so wiring shrinkage in as written would have driven every effect size to
+        exactly zero: no indicator could ever fire, and the reason would have
+        looked like a clean result.
+
+        `prior_strength=10` against an entity's own `n` means a single-case
+        month keeps ~9% of the entity's signal and a 60-case month keeps ~86%.
         """
-        if not cohort_values:
+        if not cohort_values or n_obs <= 0:
             return float(entity_value)
 
-        n = len(cohort_values)
         cohort_mean = statistics.fmean(cohort_values)
         if prior_mean is None:
             prior_mean = cohort_mean
 
         k = max(prior_strength, 1e-9)
-        return (n * cohort_mean + k * prior_mean) / (n + k)
+        weight = float(n_obs)
+        return (weight * float(entity_value) + k * float(prior_mean)) / (weight + k)
 
     def effect_size(
         self,
         value: float,
         baseline: BaselineResult,
+        n_obs: int = 0,
         shrink: bool = True,
     ) -> float | None:
-        """Robust z after optional EB shrinkage."""
-        if baseline.median is None:
-            return None
+        """Robust z of the entity's estimate against its peer median.
 
+        Plan §6.2 steps 1-2. With `shrink=True` the entity's own estimate is
+        first pulled toward the cohort prior in proportion to how little evidence
+        backs it, and the z is computed from *that*.
+
+        The shrinkage applies to the observation, not to the reference. Shrinking
+        the peer median instead would count the same correction twice — the
+        entity's value already appears inside the shrunk reference, so the
+        deviation collapses toward zero by an extra factor of `k / (n + k)`, and
+        a real 0.43-away deviation reports as 0.07.
+
+        `n_obs` is the entity's own observation count. Pass 0 to skip shrinkage
+        while keeping the signature stable.
+        """
+        # `peer_values` is the ground truth for the peer distribution, so it can
+        # supply a median when the collapsed-cohort path left it None.
         reference = baseline.median
-        if shrink and baseline.peer_values:
-            reference = self.eb_shrink(value, baseline.peer_values)
-
-        if baseline.mad is None and not baseline.peer_values:
+        if reference is None and baseline.peer_values:
+            reference = statistics.median(baseline.peer_values)
+        if reference is None:
             return None
+
+        observation = float(value)
+        if shrink and baseline.peer_values and n_obs > 0:
+            observation = self.eb_shrink(value, baseline.peer_values, n_obs)
+
         return self.robust_z(
-            value, reference, baseline.mad, peer_values=baseline.peer_values
+            observation, reference, baseline.mad, peer_values=baseline.peer_values
         )
 
     # -- self baseline ----------------------------------------------------
@@ -388,6 +422,17 @@ class BaselineService:
         Weight perturbation uses Dirichlet draws over the dimension weights;
         bootstrap resamples peers to capture cohort uncertainty. Fixed seed so
         the interval is reproducible.
+
+        Two rules the interval must obey, both learned the hard way:
+
+        * the draws use the **same competition ranking** as the point estimate.
+          Breaking ties by sort order inside the draw while using
+          "1 + count(greater)" outside it hands every tied entity a different
+          interval, which reports a distinction the data does not contain.
+        * the interval is **clamped to contain the point rank**. A percentile
+          interval that excludes the observed value is not a tight interval, it
+          is a mis-specified one, and it is worse than useless to a supervisor
+          who is trying to decide whether a rank is stable.
         """
         import random
 
@@ -399,31 +444,41 @@ class BaselineService:
         if n == 1:
             return {entities[0]: {"rank": 1, "low": 1, "high": 1, "method": "single_entity"}}
 
-        ranks: list[list[int]] = []
+        def competition_rank(values: dict[str, float]) -> dict[str, int]:
+            return {
+                entity: 1 + sum(1 for other in values if values[other] > values[entity])
+                for entity in values
+            }
+
+        observed = competition_rank(scores)
+
+        samples_by_entity: dict[str, list[int]] = {e: [] for e in entities}
         for _ in range(max(bootstrap_draws, 1)):
-            perturbed: list[float] = []
+            perturbed: dict[str, float] = {}
             for entity in entities:
                 if weights:
                     # Dirichlet-style jitter around the configured weights.
                     scale = max(rng.gauss(1.0, 0.15), 0.05)
-                    perturbed.append(scores[entity] * scale)
+                    perturbed[entity] = scores[entity] * scale
                 else:
                     # Bootstrap over the observed peer distribution.
                     sample = [
                         scores[e] for e in rng.choices(entities, k=max(n - 1, 1))
                     ]
-                    perturbed.append(statistics.fmean(sample))
-            order = sorted(entities, key=lambda e: -perturbed[entities.index(e)])
-            ranks.append([order.index(e) + 1 for e in entities])
+                    perturbed[entity] = statistics.fmean(sample)
+            drawn = competition_rank(perturbed)
+            for entity, rank in drawn.items():
+                samples_by_entity[entity].append(rank)
 
         out: dict[str, dict[str, int]] = {}
-        for index, entity in enumerate(entities):
-            observed = 1 + sum(1 for other in entities if scores[other] > scores[entity])
-            samples = sorted(r[index] for r in ranks)
+        for entity in entities:
+            samples = sorted(samples_by_entity[entity])
+            low = max(1, samples[int(0.05 * len(samples))])
+            high = min(n, samples[int(0.95 * len(samples)) - 1] if len(samples) > 1 else samples[0])
             out[entity] = {
-                "rank": observed,
-                "low": max(1, samples[int(0.05 * len(samples))]),
-                "high": min(n, samples[int(0.95 * len(samples)) - 1] if len(samples) > 1 else samples[0]),
+                "rank": observed[entity],
+                "low": min(low, observed[entity]),
+                "high": max(high, observed[entity]),
                 "method": "weight_perturbation_dirichlet+bootstrap_over_peers",
             }
         return out
@@ -433,7 +488,16 @@ _service: BaselineService | None = None
 
 
 def get_baseline_service(policy=None) -> BaselineService:
+    """The shared service, or a fresh one bound to an explicitly named policy.
+
+    A passed policy is honoured rather than folded into the singleton: a caller
+    asking for a different policy profile is asking for different numbers, and
+    quietly getting the first-loaded one is how a policy change goes unnoticed
+    until someone reads a `run` row and finds the wrong hash on it.
+    """
     global _service
+    if policy is not None:
+        return BaselineService(policy=policy)
     if _service is None:
-        _service = BaselineService(policy=policy)
+        _service = BaselineService()
     return _service

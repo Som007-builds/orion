@@ -62,7 +62,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.7 | Baselines | LOO median/MAD + EB shrinkage + ranks | ✅ | MAD/IQR/stdev fallback added |
 | 2.8 | Indicators | P0 EG-01…EG-11 | ✅ | 6 indicators in `app/services/rules_engine.py`; 14-section smoke green. **3 bugs fixed that would have shipped** — see notes below |
 | 2.8 | Indicators | NS-01/02/04/05 **stubs** | ✅ | `rules_engine.ns_stub()`. `missing_fields` deliberately **empty** — an unwritten detector is not an absence of evidence. Drop real code in behind the same signature |
-| 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | 🟡 | **next**. `rules_engine.run_all()` is the input |
+| 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ✅ | `app/services/scoring_service.py`, 13-section smoke green. **4 more bugs caught** — see notes below |
 | 2.10 | Evidence | Finding cards + counterfactual | ⬜ | |
 | 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
 | 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ⬜ | **unblocks Dev 1** |
@@ -70,7 +70,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | ⛔ needs OQ-9 |
 | 2.15 | Trends | Trends + change points | ⬜ | |
 | 2.16 | P1 | EG-12…EG-17, NS-03/06 | ⬜ | |
-| 2.17 | Ops | Sovereignty check, bundle, SBOM | ⬜ | promoted: do right after 2.9 |
+| 2.17 | Ops | Sovereignty check, bundle, SBOM | ⬜ | **next** |
 | 2.18 | Tests | Full suite | ⬜ | |
 | 2.19 | Integrate | Dev 3 handoff + E2E demo | ⬜ | |
 
@@ -138,6 +138,17 @@ Worth recording because the *shape* of each is the point — all three are indic
 3. **Every SQLite-side requirement (`note_store`, `submission`, `record_version`) was probed as a DuckDB table**, so all three indicators declined on data that was present. Fixed at the source (S-4b row above), not at each call site.
 
 Also fixed: stored evidence queries now `CAST(? AS TIMESTAMP)` their period bounds. The reproduction test caught this — a stored record is JSON, so bounds re-arrive as strings and DuckDB won't compare `TIMESTAMP` to `VARCHAR`. A re-runnable query has to stand alone.
+
+### Four bugs Phase 9 caught that would otherwise have shipped
+
+Same reason as above — each of these produces a *confident wrong answer*, which is the only kind of bug this tool cannot afford:
+
+1. **Every compliant entity was reported `not_assessable`.** An indicator whose effect size came back null was dropped from the signal list, so a clean family had no score, so a clean dimension had no score, so `sap` was `None` and the tier defaulted to `not_assessable`. Ten of eleven entities in the smoke cohort were filed as *unexaminable* when they had in fact been examined and found fine — the exact mirror image of the error the tool exists to prevent, and it would have hit every well-run entity in the country. Fixed by separating **presence** from **magnitude**: a family whose detectors all ran and all came back null scores `0.0` rather than vanishing from the mapping. A zero is the answer "measured, and nothing was found", and it is the only answer that lets a clean entity be reported as clean.
+2. **The most adverse entity in the cohort was graded `T4`, the lowest attention tier, while holding rank 1.** The tier cutpoints assume all eight dimensions answered. With two of eight measurable the ceiling is `0.16 x 0.3 = 0.05`, so `T1` (0.75) is unreachable *by construction* and everything collapses into `T4`. Fixed with `min_measurable_share` (0.50) in policy: below it the tier is withheld and reported `not_assessable`, while the SAP and every dimension score stay published. The number is real; it just cannot be graded yet.
+3. **`rank_interval` could return an interval excluding its own point estimate**, and it broke ties by sort order inside the resampling draws while using competition ranking for the point rank. Nine entities at SAP 0.0 got nine different intervals. Both fixed: draws now use the same competition ranking, and the interval is clamped to contain the observed rank. A percentile interval that excludes the observed value is a mis-specified one, and it is worse than useless to someone deciding whether a rank is stable.
+4. **All three service singletons ignored an explicitly passed policy.** `get_rules_engine(p)`, `get_baseline_service(p)` and `get_scoring_service(p)` returned the first-loaded instance no matter what the caller asked for, so a scoring pass could record one policy hash and compute under another. `content_hash` cannot detect this — it identifies the file a profile was loaded from, not the dict in hand. Now: no argument → shared instance; explicit policy → always a fresh service bound to exactly that policy.
+
+Also: the ledger now has a distinct `scoring_completed` action rather than sharing `run_completed` with the ingestion jobs, so "when was this entity last scored" is answerable without also matching every load. And a scoring run that falls below the share floor now says so in `caveats` rather than leaving a bare null tier for the API to render.
 
 ---
 

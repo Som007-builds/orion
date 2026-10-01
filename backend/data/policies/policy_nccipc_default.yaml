@@ -149,6 +149,22 @@ family_caps:
   coverage: 0.60
   record_integrity: 0.60
 
+# w_f: how much one family can contribute to a dimension it feeds. Distinct from
+# the cap above, which limits how much of a family's own score is usable.
+# Correlated families within a dimension (EG-01 and EG-02 both read the same
+# rapid-thin-closure evidence) are already collapsed by family, so these weights
+# only arbitrate between *different* families feeding the same dimension.
+family_weights:
+  rapid_thin_closure: 0.50
+  escalation_integrity: 0.60   # ESC is built almost entirely from this family
+  governance_records: 0.50
+  metric_gaming: 0.50
+  throughput_process: 0.40
+  timestamp_integrity: 0.50
+  recurrence: 0.50
+  coverage: 0.50
+  record_integrity: 0.50
+
 egi_families:         # execution-gap families -> EGI
   - rapid_thin_closure
   - escalation_integrity
@@ -173,6 +189,13 @@ dq_components:
   mapping_confidence: 0.10
 
 dts_floor: 0.20       # below this DTS, confidence is capped hard
+
+# Share of dimension_weights that must be measurable before an attention tier is
+# assigned at all. The cutpoints below assume all eight dimensions answered; a
+# submission that answers two of them cannot reach T1 however bad it looks, so
+# tiering off it would state something the evidence does not support. Below this
+# share the tier is `not_assessable` and the dimension scores stay visible.
+min_measurable_share: 0.50
 
 # ----------------------------------------------------------------- review packs --
 review_pack:
