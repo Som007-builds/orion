@@ -17,7 +17,7 @@
 
 **Status key:** `⬜` not started · `🟡` in progress · `✅` complete · `⛔` blocked by another dev
 
-**Last update:** Dev 2 — Phases 0–5 & 7 complete; assessability started (see commit history for who changed what)
+**Last update:** Dev 2 — Phases 0–5, 6 & 7 complete; indicators started (see commit history for who changed what)
 
 ---
 
@@ -57,11 +57,11 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.4 | Privacy | HMAC pseudonymisation + note redaction | ✅ | per-entity salted; zero PII leakage |
 | 2.5 | Ingestion | 10-stage pipeline, quarantine, DQ score | ✅ | 8 formats, 13-section smoke green; DQ tier A verified |
 | 2.6 | Ingestion | Vendor mapping YAML + fuzzy assistant | ✅ | Splunk + Elastic profiles; suggests, never applies |
-| 2.7 | Assessability | Per-dimension matrix | 🟡 | **in progress now** |
+| 2.7 | Assessability | Per-dimension matrix | ✅ | 8 dims, §4.4 verbatim; never-submitted vs blank distinguished |
 | 2.7 | Policy | Signed versioned policy profiles | ✅ | `policy_nccipc_default.yaml` |
 | 2.7 | Baselines | LOO median/MAD + EB shrinkage + ranks | ✅ | MAD/IQR/stdev fallback added |
-| 2.8 | Indicators | P0 EG-01…EG-11 | ⬜ | needs 2.5 |
-| 2.8 | Indicators | NS-01/02/04/05 **stubs** | ⬜ | unblocks Dev 3 integration |
+| 2.8 | Indicators | P0 EG-01…EG-11 | 🟡 | **in progress now** |
+| 2.8 | Indicators | NS-01/02/04/05 **stubs** | ⬜ | same file; unblocks Dev 3 integration |
 | 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ⬜ | needs 2.7, 2.8 |
 | 2.10 | Evidence | Finding cards + counterfactual | ⬜ | |
 | 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
@@ -149,7 +149,7 @@ Two conventions so three people don't collide:
 | Milestone | Target | Status |
 |---|---|---|
 | Foundation + frozen contracts | hour 0–3 | ✅ |
-| Data in (ingestion, DQ, assessability) | hour 8.5 | 🟡 ingestion+ DQ done, assessability in progress |
+| Data in (ingestion, DQ, assessability) | hour 8.5 | ✅ |
 | Signal out (indicators, scoring) | hour 14 | ⬜ |
 | **CUT LINE — demo-ready** | **hour 14** | ⬜ |
 | OpenAPI frozen → Dev 1 data unblocked | hour 18 | ⬜ |
