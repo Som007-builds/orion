@@ -386,6 +386,119 @@
         "title": "Body_upload_api_v1_ingest_upload_post",
         "type": "object"
       },
+      "ChangePointOut": {
+        "additionalProperties": false,
+        "description": "A period where the cohort's distribution of a metric shifted.\n\nA prompt to look, not a finding: the same detector flags a genuine\nimprovement as reliably as a deterioration, so `direction` reports the sign\nof the measured shift only \u2014 never a judgement about the entity.",
+        "properties": {
+          "cohort_median_after": {
+            "title": "Cohort Median After",
+            "type": "number"
+          },
+          "cohort_median_before": {
+            "title": "Cohort Median Before",
+            "type": "number"
+          },
+          "direction": {
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "n_periods_after": {
+            "minimum": 1.0,
+            "title": "N Periods After",
+            "type": "integer"
+          },
+          "n_periods_before": {
+            "minimum": 1.0,
+            "title": "N Periods Before",
+            "type": "integer"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "shift": {
+            "description": "median_after - median_before",
+            "title": "Shift",
+            "type": "number"
+          },
+          "ss_reduction": {
+            "description": "Fraction of within-segment variance the split removes (least-squares criterion)",
+            "title": "Ss Reduction",
+            "type": "number"
+          }
+        },
+        "required": [
+          "period_start",
+          "period_end",
+          "direction",
+          "cohort_median_before",
+          "cohort_median_after",
+          "shift",
+          "ss_reduction",
+          "n_periods_before",
+          "n_periods_after"
+        ],
+        "title": "ChangePointOut",
+        "type": "object"
+      },
+      "ChangePointsOut": {
+        "additionalProperties": false,
+        "description": "Regime-shift candidates for a metric across the cohort.",
+        "properties": {
+          "change_points": {
+            "items": {
+              "$ref": "#/components/schemas/ChangePointOut"
+            },
+            "title": "Change Points",
+            "type": "array"
+          },
+          "metric": {
+            "enum": [
+              "egi",
+              "nsi",
+              "dts",
+              "sap"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "n_periods": {
+            "description": "Scored periods the detector could reason over",
+            "minimum": 0.0,
+            "title": "N Periods",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the answer is weaker than it looks, when it is",
+            "title": "Note"
+          }
+        },
+        "required": [
+          "metric",
+          "n_periods",
+          "change_points"
+        ],
+        "title": "ChangePointsOut",
+        "type": "object"
+      },
       "ConfidenceBreakdown": {
         "additionalProperties": false,
         "description": "`confidence = min(1, n/n_min) \u00d7 assessability \u00d7 data_trust` (plan \u00a76.2).\n\nKept decomposed because an examiner asking \"why is confidence 0.2?\" needs\nto know which of the three factors drove it down.",
@@ -4232,6 +4345,110 @@
         "title": "SuggestedAction",
         "type": "object"
       },
+      "TrendPointOut": {
+        "additionalProperties": false,
+        "description": "One period in an entity's series.\n\n`value` is `None` in two situations the models keep distinct:\n\n* `gap=True` \u2014 the entity has **no score row** for a period the cohort\n  scored in (the submission stopped or never covered it). A chart must\n  break the line here, not bridge it.\n* `assessable=False` \u2014 the row exists but the metric was not computed for\n  the entity that period. \"Scored nothing\" and \"could not be scored\" are\n  different facts, and the series holds both.",
+        "properties": {
+          "assessable": {
+            "default": false,
+            "description": "Whether the metric was computed for this period",
+            "title": "Assessable",
+            "type": "boolean"
+          },
+          "gap": {
+            "default": false,
+            "description": "No score row for this period: submission missing or never covered it",
+            "title": "Gap",
+            "type": "boolean"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run that wrote this period's score (lineage)",
+            "title": "Run Id"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "period_start",
+          "period_end"
+        ],
+        "title": "TrendPointOut",
+        "type": "object"
+      },
+      "TrendSeriesOut": {
+        "additionalProperties": false,
+        "description": "One entity's series for one metric, oldest period first.",
+        "properties": {
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "metric": {
+            "enum": [
+              "egi",
+              "nsi",
+              "dts",
+              "sap"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "n_gaps": {
+            "minimum": 0.0,
+            "title": "N Gaps",
+            "type": "integer"
+          },
+          "n_scored": {
+            "description": "Periods with a computed value (neither gap nor unscored)",
+            "minimum": 0.0,
+            "title": "N Scored",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPointOut"
+            },
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entity_id",
+          "metric",
+          "points",
+          "n_scored",
+          "n_gaps"
+        ],
+        "title": "TrendSeriesOut",
+        "type": "object"
+      },
       "UploadAccepted": {
         "additionalProperties": false,
         "description": "`POST /ingest/upload` \u2014 the job is queued, not done.\n\nIngestion runs in the background under the DuckDB single-writer lock, so\nthis is an acknowledgement, not a result.",
@@ -7442,7 +7659,7 @@
     },
     "/api/v1/trends": {
       "get": {
-        "description": "503 until Phase 15 (2.15). A series is only meaningful alongside its assessability per period: an entity that stopped submitting data has a gap in its series, and that gap must not be drawn as a line through it.",
+        "description": "One entity's series for one metric, oldest period first. A series is only meaningful alongside its assessability per period: an entity that stopped submitting data has a gap in its series, and that gap is flagged (`gap: true`) rather than bridged \u2014 a chart must break the line, not draw straight through it. A period whose row exists but whose metric was not computed is `assessable: false`, which is a different fact from a gap.\n\n`entity_id` is required; pass `period_start`/`period_end` to window the series.",
         "operationId": "trends_api_v1_trends_get",
         "parameters": [
           {
@@ -7465,6 +7682,12 @@
             "schema": {
               "default": "egi",
               "description": "egi, nsi, dts or sap",
+              "enum": [
+                "egi",
+                "nsi",
+                "dts",
+                "sap"
+              ],
               "title": "Metric",
               "type": "string"
             }
@@ -7545,11 +7768,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/TrendSeriesOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such entity"
           },
           "422": {
             "content": {
@@ -7560,32 +7786,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "A scored metric over successive periods",
         "tags": [
           "trends"
-        ],
-        "x-orion": {
-          "phase": "Phase 15 (2.15)",
-          "service": "trend_service",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/trends/change-points": {
       "get": {
-        "description": "503 until Phase 15 (2.15). A change point marks where the shape of the values changed across the cohort. It is a prompt to look, not a finding: a genuine improvement produces one exactly as reliably as a deterioration, and the response must be able to say which direction it moved.",
+        "description": "A change point marks where the shape of a metric shifted across the cohort: the per-period cohort median is segmented with a least-squares criterion, and each split that clears the shift and variance floors is reported at the period the new regime begins. It is a prompt to look, not a finding: a genuine improvement produces one exactly as reliably as a deterioration, so `direction` only says which way the measured value moved.\n\nPass `period_start`/`period_end` to reason over a window; without one the whole scored history is used. Periods too sparsely scored to stand for the cohort are skipped, and `note` says so \u2014 the answer must never look stronger than the data behind it.",
         "operationId": "change_points_api_v1_trends_change_points_get",
         "parameters": [
           {
@@ -7596,8 +7807,52 @@
             "schema": {
               "default": "egi",
               "description": "egi, nsi, dts or sap",
+              "enum": [
+                "egi",
+                "nsi",
+                "dts",
+                "sap"
+              ],
               "title": "Metric",
               "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
             }
           },
           {
@@ -7638,7 +7893,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/ChangePointsOut"
                 }
               }
             },
@@ -7653,27 +7908,12 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "Periods where a metric's distribution shifted",
         "tags": [
           "trends"
-        ],
-        "x-orion": {
-          "phase": "Phase 15 (2.15)",
-          "service": "trend_service",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/verdicts": {
