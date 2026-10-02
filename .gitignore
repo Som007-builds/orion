@@ -21,6 +21,7 @@ backend/data/staging/
 backend/data/keys/
 backend/data/packs/staged/
 backend/data/packs/exports/
+backend/data/packs/active/
 backend/dist/
 backend/wheelhouse/
 backend/*.db

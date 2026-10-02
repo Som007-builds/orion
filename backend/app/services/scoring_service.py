@@ -1329,13 +1329,15 @@ class ScoringService:
             sort_keys=True,
         )
 
+        pack_version = self._active_pack_version()
+
         run_id = f"run_{uuid.uuid4().hex[:16]}"
         with transaction() as conn:
             conn.execute(
                 "INSERT INTO run (run_id, created_ts, started_ts, status, "
-                " input_manifest_hashes, config_hash, policy_hash, "
+                " input_manifest_hashes, config_hash, pack_version, policy_hash, "
                 " policy_profile_id, code_version, seed) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     run_id,
                     datetime.now(timezone.utc).isoformat(),
@@ -1343,6 +1345,7 @@ class ScoringService:
                     "running",
                     manifest_blob,
                     hashlib.sha256(config_blob.encode("utf-8")).hexdigest(),
+                    pack_version,
                     self.policy.content_hash,
                     # Stored next to the hash because both belong to lineage: the
                     # hash proves which document, the id says which profile — a
@@ -1354,6 +1357,27 @@ class ScoringService:
                 ),
             )
         return run_id
+
+    def _active_pack_version(self) -> str | None:
+        """The pack version that governed this run, when one did.
+
+        A promotion makes the pack's policy the active policy. A run executed
+        under that policy — detected by the active policy row's content hash
+        equalling the policy this service is bound to — is lineage of the pack
+        and records the pack's version on the run row, so a finding's run can be
+        traced to the pack that produced it. A run under a manually activated
+        profile records no pack version.
+        """
+        active = get_connection().execute(
+            "SELECT content_hash FROM policy_profile WHERE active = 1 LIMIT 1"
+        ).fetchone()
+        if active is None or active["content_hash"] != self.policy.content_hash:
+            return None
+        pack = get_connection().execute(
+            "SELECT version FROM pack WHERE status = 'active' ORDER BY promoted_ts "
+            "DESC LIMIT 1"
+        ).fetchone()
+        return str(pack["version"]) if pack else None
 
     def _persist(self, run_id: str, scores: Sequence[EntityScore]) -> None:
         """Write `dimension_score` and `entity_score`.

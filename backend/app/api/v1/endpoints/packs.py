@@ -1,92 +1,134 @@
-"""Pack lifecycle: stage, shadow, promote, rollback.
+"""Pack lifecycle (plan §4.10, Phase 14): stage, shadow, promote, rollback.
 
-503 until Phase 14 (2.14), which is the **first** thing to cut if the deadline
-bites — the tool works without a pack manager, and a pack can be managed by hand
-from `data/packs/` until then.
+A pack is a signed, self-contained bundle (`manifest.json` plus the policy it
+carries) that can be compared against the live run, made the active policy, and
+restored — without ever editing a profile in place.
 
-The route set is published now because it is the part of the contract most likely
-to need a second version later: a rollback route that has to be *added* once
-someone tries to use it is a rollback route nobody has tested. Having it in the
-contract with a 503 makes its existence and its ordering unambiguous from day one.
+The four steps are deliberately asymmetric:
+
+* **stage** copies the bundle into `data/packs/staged/`, hashes and signs it,
+  and changes nothing live. A staged pack is inert by construction.
+* **shadow** executes the pack's policy over the live window *without
+  persisting anything* and diffs its raised findings against the stored
+  findings of the latest completed run, with a mechanical promote/hold
+  recommendation.
+* **promote** — the first live step — requires a shadow run, installs the
+  bundle into `data/packs/active/`, adopts the bundled policy as the active
+  policy, and demotes the previous live pack to `rolled_back`.
+* **rollback** restores the *immediate* predecessor, one step at a time.
+
+Every step is ledgered. Routes map `PackNotFound` to 404; rule refusals
+(`PackError` and friends) map to 400 through the shared exception classifier.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.api.v1.deps import WriterDep
-from app.api.v1.errors import NotImplementedResponse, pending, pending_meta
-from app.schemas.ledger import PackStageIn
+from app.schemas.ledger import (
+    PackOut,
+    PackShadowOut,
+    PackStageIn,
+    PackTransitionOut,
+)
+from app.services.pack_manager import PackNotFound, get_pack_manager
 
 router = APIRouter(tags=["packs"])
-
-PENDING = {"model": NotImplementedResponse, "description": "Not built yet"}
-PHASE = "Phase 14 (2.14)"
 
 
 @router.post(
     "/packs/stage",
-    response_model=NotImplementedResponse,
+    response_model=PackOut,
+    status_code=201,
     summary="Stage a pack version without activating it",
     description=(
-        "503 until Phase 14. Staging writes to `data/packs/staged/` and changes "
-        "nothing that is live. A pack that has been staged but not shadow-run and "
-        "not promoted is inert, which is the point: a pack version should be able "
-        "to exist on disk without being reachable."
+        "Copy a pack bundle (manifest.json + policy/<profile_id>.yaml) into "
+        "`data/packs/staged/<pack_id>/`, hash its contents deterministically, "
+        "sign the hash with the host key, and ledger `pack_staged`. Staging "
+        "changes nothing live: a staged pack is inert until a shadow run "
+        "compares it with the live result set and an operator promotes it."
     ),
-    responses={503: PENDING},
-    openapi_extra=pending_meta("pack_manager", PHASE),
+    responses={
+        404: {"description": "No such pack id or bundle"},
+        400: {"description": "Bundle validation or pack id/version mismatch"},
+    },
 )
 def stage_pack(body: PackStageIn, writer: WriterDep) -> Any:
-    return pending("POST /api/v1/packs/stage", "pack_manager", PHASE)
+    try:
+        return get_pack_manager().stage(body, actor=writer.name)
+    except PackNotFound as exc:  # pragma: no cover - stage validates locally
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
     "/packs/{pack_id}/shadow",
-    response_model=NotImplementedResponse,
-    summary="Run a staged pack in shadow against the live one",
+    response_model=PackShadowOut,
+    summary="Run the staged policy against the live result set without activating it",
     description=(
-        "503 until Phase 14. Shadow execution scores with the candidate pack while "
-        "continuing to serve the live one, so a regression shows up as a diff "
-        "between two result sets rather than as a changed dashboard nobody was "
-        "watching."
+        "Execute the pack's policy over the same window the latest completed run "
+        "covered, without persisting anything, and diff its raised findings "
+        "against that run's stored findings. `n_findings_added/removed/changed` "
+        "and the full `diff_report` are recorded on the pack row, with a "
+        "mechanical recommendation (promote unless the candidate adds findings "
+        "or intensifies existing ones). The run changes nothing live."
     ),
-    responses={503: PENDING},
-    openapi_extra=pending_meta("pack_manager", PHASE),
+    responses={
+        404: {"description": "No such pack"},
+        400: {"description": "Pack not staged, or no completed run to compare with"},
+    },
 )
 def shadow_pack(pack_id: str, writer: WriterDep) -> Any:
-    return pending("POST /api/v1/packs/{id}/shadow", "pack_manager", PHASE)
+    try:
+        return get_pack_manager().shadow(pack_id, actor=writer.name)
+    except PackNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
     "/packs/{pack_id}/promote",
-    response_model=NotImplementedResponse,
-    summary="Make a shadow-run pack the live one. Ledgered.",
+    response_model=PackTransitionOut,
+    summary="Make a shadow-run pack the live pack",
     description=(
-        "503 until Phase 14. Promotion is refused without a shadow run that has "
-        "been compared against the live pack — an unreviewed promotion is how a "
-        "detector change silently alters every stored score's meaning."
+        "Requires the pack to have been shadow-run. Copies the bundle from "
+        "`staged/` to `active/`, adopts the bundled policy as the active policy "
+        "(skipped when its content hash already matches the active one), "
+        "demotes the previous live pack to `rolled_back`, and ledgeres "
+        "`pack_promoted`. This is the only pack step that changes what scoring "
+        "reads."
     ),
-    responses={503: PENDING},
-    openapi_extra=pending_meta("pack_manager", PHASE),
+    responses={
+        404: {"description": "No such pack"},
+        400: {"description": "Pack not shadow-run"},
+    },
 )
 def promote_pack(pack_id: str, writer: WriterDep) -> Any:
-    return pending("POST /api/v1/packs/{id}/promote", "pack_manager", PHASE)
+    try:
+        return get_pack_manager().promote(pack_id, actor=writer.name)
+    except PackNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(
     "/packs/{pack_id}/rollback",
-    response_model=NotImplementedResponse,
-    summary="Return to the previous live pack. Ledgered.",
+    response_model=PackTransitionOut,
+    summary="Restore the immediately previous live pack",
     description=(
-        "503 until Phase 14. **This is the first route to cut if time runs out** — "
-        "but it is the one nobody should want to discover is missing, because "
-        "rollback is what you need precisely when something has gone wrong."
+        "`pack_id` names the pack to restore: it must be the immediate "
+        "predecessor of the current live pack (status `rolled_back`, promoted "
+        "directly before the active one). One step per call — the statuses swap, "
+        "the active bundle is replaced from `staged/`, the restored pack's "
+        "policy is re-adopted, and `pack_rolled_back` is ledgered."
     ),
-    responses={503: PENDING},
-    openapi_extra=pending_meta("pack_manager", PHASE),
+    responses={
+        404: {"description": "No such pack"},
+        400: {"description": "Pack not superseded, or not the immediate predecessor"},
+    },
 )
 def rollback_pack(pack_id: str, writer: WriterDep) -> Any:
-    return pending("POST /api/v1/packs/{id}/rollback", "pack_manager", PHASE)
+    try:
+        return get_pack_manager().rollback(pack_id, actor=writer.name)
+    except PackNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
