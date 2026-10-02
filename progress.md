@@ -17,7 +17,7 @@
 
 **Status key:** `⬜` not started · `🟡` in progress · `✅` complete · `⛔` blocked by another dev
 
-**Last update:** Dev 2 — Phase 8 complete (6 P0 indicators + 4 NS stubs, 14-section smoke green). **Schema change S-4 affects your queries — see below.** Scoring next.
+**Last update:** Dev 2 — Phase 12 complete: 45 operations / 42 paths frozen as `docs/openapi-v1.json` (no-diff test guards it), every route typed, pending routes return a typed 503 naming the phase that delivers them. Scoring-gate fix: entity EGI/NSI now only index dimensions the assessability gate admitted. 28 contract+API tests green. **Auth gap for Dev 3 — see Dev 2 section.**
 
 ---
 
@@ -65,7 +65,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ✅ | `app/services/scoring_service.py`, 13-section smoke green. **4 more bugs caught** — see notes below |
 | 2.10 | Evidence | Finding cards + counterfactual | ⬜ | **next** |
 | 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
-| 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ⬜ | **unblocks Dev 1** |
+| 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ✅ | 45 ops / 42 paths frozen in `docs/openapi-v1.json` + no-diff test; 28 tests. **Auth gap: header-derived actor labels but does NOT verify — see below** |
 | 2.13 | Export | Supervisory brief, signed | ⬜ | ⛔ needs OQ-9 key custody |
 | 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | ⛔ needs OQ-9 |
 | 2.15 | Trends | Trends + change points | ⬜ | |
@@ -75,7 +75,12 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.18 | Tests | Full suite | ⬜ | |
 | 2.19 | Integrate | Dev 3 handoff + E2E demo | ⬜ | |
 
-**Blocking others:** Dev 1 needs 2.12. Dev 3 needs nothing — unblocked since Phase 2.
+**Blocking others:** Dev 1 was unblocked at 2.12 — `/api/v1` frozen. Dev 3 needs nothing — unblocked since Phase 2.
+
+**Labelled gaps (Dev 2, explicit so they are not silent):**
+
+- **Authentication labels, it does not verify.** There is no identity provider in the offline deployment, so `X-Actor`/`X-Role` headers are resolved and gated but never checked against a credential. In dev the gate is permissive; outside dev an unattributed write is refused (401) and reads stay open. Dev 3 owns the identity decision — the seam is `resolve_actor` in `app/api/v1/deps.py`, one function to replace.
+- **Perf figures are targets, not measured.** No bench script has run on stated hardware yet (2.18).
 
 ---
 

@@ -14,6 +14,7 @@ nobody can explain.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -343,6 +344,28 @@ class MappingAssistant:
                 "version": definition.get("version"),
             },
         )
+
+    def approved_profile(self, profile_id: str) -> dict[str, Any]:
+        """One approved mapping profile, with its `definition` decoded.
+
+        Used after an approval so the response can report what was actually
+        stored — the profile id, the approver and the timestamp — rather than
+        echoing back what the caller just sent. A caller that reported its own
+        request as the outcome would be reporting an intention.
+        """
+        row = get_connection().execute(
+            "SELECT profile_id, vendor, version, definition, created_ts, "
+            "approved_by, active FROM mapping_profile WHERE profile_id = ?",
+            (profile_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"No such approved mapping profile: {profile_id}")
+        out = dict(row)
+        try:
+            out["definition"] = json.loads(out.get("definition") or "{}")
+        except (TypeError, ValueError):
+            out["definition"] = {}
+        return out
 
     def approved_profiles(self) -> list[dict[str, Any]]:
         rows = get_connection().execute(

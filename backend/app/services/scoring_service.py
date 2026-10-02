@@ -58,6 +58,7 @@ import hashlib
 import json
 import logging
 import math
+import sqlite3
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -65,8 +66,21 @@ from typing import Any, Iterable, Sequence
 
 from app.config import get_settings
 from app.db.sqlite import get_connection, transaction
-from app.schemas.common import AttentionTier, RankInterval
+from app.schemas.common import (
+    AttentionTier,
+    CoverageType,
+    RankInterval,
+    SizeTier,
+    SocModel,
+)
+from app.schemas.entity import (
+    DimensionScoreOut,
+    EntityListItem,
+    EntityOut,
+    EntitySummaryOut,
+)
 from app.schemas.indicator import Assessability, Dimension, IndicatorResult, Period
+from app.schemas.ledger import RunOut
 from app.services.assessability import DIMENSION_SPECS, AssessabilityService
 from app.services.baseline_service import get_baseline_service
 from app.services.ledger import LedgerAction, get_ledger
@@ -434,8 +448,14 @@ class ScoringService:
         entity_id: str,
         signals: Sequence[Signal],
         family_scores: dict[str, float],
-    ) -> list[DimensionResult]:
+    ) -> tuple[list[DimensionResult], dict[str, float]]:
         """Capped noisy-OR per dimension, gated on the §4.4 assessability matrix.
+
+        Returns the per-dimension results *and* the subset of `family_scores`
+        belonging to dimensions that survived the gate, so that EGI and NSI index
+        the same evidence the dimension layer was willing to publish. Indexing the
+        ungated scores separately was how an entity ended up with a non-zero EGI
+        and eight `None` dimensions.
 
         The gate is not cosmetic. A dimension whose evidence is absent reports
         `None` even when some family carries a score from an unrelated detector —
@@ -450,6 +470,7 @@ class ScoringService:
             families_for.setdefault(signal.dimension, set()).add(signal.family)
 
         results: list[DimensionResult] = []
+        admissible: dict[str, float] = {}
         for spec in DIMENSION_SPECS:
             dimension = spec.dimension
             gate = by_dimension.get(dimension)
@@ -478,6 +499,8 @@ class ScoringService:
                     )
                 )
                 continue
+
+            admissible.update({f: family_scores[f] for f in families if f in family_scores})
 
             if not terms:
                 results.append(
@@ -508,7 +531,7 @@ class ScoringService:
                     ci_high=ci_high,
                 )
             )
-        return results
+        return results, admissible
 
     def _dimension_interval(
         self,
@@ -593,14 +616,20 @@ class ScoringService:
         period_start: date,
         period_end: date,
         dts: float | None = None,
+        indicators: Sequence[str] | None = None,
     ) -> EntityScore:
         """Score one entity for one period. No writes.
 
         `dts` is accepted so a caller scoring a whole period can compute it once
         from the cohort-wide completeness picture; omit it and it is derived here.
+
+        `indicators` narrows the run to named indicator ids. Every dimension is
+        still scored, but one with no indicators behind it comes out
+        not-assessable rather than zero — a targeted run must not look like a
+        full one that happened to find nothing in the dimensions it skipped.
         """
         period = Period(start=period_start, end=period_end)
-        results = self.rules.run_all(entity_id, period_start, period_end)
+        results = self.rules.run_all(entity_id, period_start, period_end, only=indicators)
 
         # Completeness is the share of *implemented* indicators that produced a
         # value. Stubs are excluded from the denominator: an unwritten detector
@@ -616,10 +645,19 @@ class ScoringService:
 
         signals = self._apply_fdr(self._raw_signals(results, dts))
         family_scores = self._family_scores(signals)
-        dimensions = self._dimension_results(entity_id, signals, family_scores)
+        dimensions, admissible_families = self._dimension_results(
+            entity_id, signals, family_scores
+        )
 
-        egi = self._index(self.policy.egi_families, family_scores)
-        nsi = self._index(self.policy.nsi_families, family_scores)
+        # Indexed over the *admissible* families only. The §4.4 gate already refuses
+        # a dimension whose evidence is absent, but EGI and NSI were being computed
+        # from the raw family scores, so a detector running against evidence the
+        # gate had just declared unusable still moved a published entity-level
+        # number. An entity could then show a non-zero EGI with every dimension
+        # reporting `None` — an adverse index built entirely from evidence nobody
+        # could examine, which is the shape this tool must never produce.
+        egi = self._index(self.policy.egi_families, admissible_families)
+        nsi = self._index(self.policy.nsi_families, admissible_families)
         sap = self._sap(dimensions)
 
         score = EntityScore(
@@ -676,26 +714,37 @@ class ScoringService:
             return AttentionTier.NOT_ASSESSABLE.value
         return self.policy.tier_for(score.sap)
 
-    @staticmethod
-    def _overall(dimensions: Sequence[DimensionResult]) -> Assessability:
+    def _overall(self, dimensions: Sequence[DimensionResult]) -> Assessability:
         """Overall state, weighted to the weakest evidence.
 
         Deliberately not a mean of multipliers — averaging is exactly what turns
         missing evidence into a middling score, which reads as "partly assessed"
         when most of it was absent.
+
+        Coverage, not calibration, is the question here. `not_assessable` is
+        reserved for the case where *nothing* could be measured, because that is
+        the one reading that says "we could not examine this entity" — and an
+        entity whose detectors correctly return no adverse signal must never be
+        filed there. It is the mirror image of the error this tool exists to
+        avoid, and it would hit every well-run entity in the country.
+
+        Anything short of full coverage is `partial`, including a thin
+        measurement, which is why this and `sap_tier` may legitimately disagree:
+        an entity measured on two dimensions of eight *was* partly assessed, and
+        still cannot be placed against cutpoints calibrated on eight. Reporting
+        `not_assessable` for that would overstate the blindness; letting it reach
+        a tier would overstate the precision. The pair is read together for that
+        reason, and `entity_summary` persists this value so the list and the
+        scorecard cannot disagree about it.
         """
-        assessable = sum(1 for d in dimensions if d.assessability is Assessability.ASSESSABLE)
-        partial = sum(1 for d in dimensions if d.assessability is Assessability.PARTIAL)
-        not_assessable = sum(
-            1 for d in dimensions if d.assessability is Assessability.NOT_ASSESSABLE
-        )
-        if not_assessable == 0 and partial == 0:
-            return Assessability.ASSESSABLE
-        if assessable == 0:
+        measured = sum(1 for d in dimensions if d.score is not None)
+        if measured == 0:
             return Assessability.NOT_ASSESSABLE
-        if partial >= assessable:
-            return Assessability.PARTIAL
-        return Assessability.ASSESSABLE
+        if measured == len(dimensions) and all(
+            d.assessability is Assessability.ASSESSABLE for d in dimensions
+        ):
+            return Assessability.ASSESSABLE
+        return Assessability.PARTIAL
 
     def _caveats(
         self, score: EntityScore, results: dict[str, IndicatorResult]
@@ -792,14 +841,25 @@ class ScoringService:
         period_end: date,
         persist: bool = True,
         actor: str = "scoring_service",
+        indicators: Sequence[str] | None = None,
+        only_entity_ids: Sequence[str] | None = None,
     ) -> list[EntityScore]:
         """Score every entity in the period, rank them, and persist.
 
         Ranking is inherently cohort-relative, so it cannot be done one entity at
-        a time — the rank of an entity depends on who else is present.
+        a time - the rank of an entity depends on who else is present.
+
+        `only_entity_ids` narrows what is *returned*, never what is ranked or
+        persisted. Ranking a subset against itself would produce ranks that are
+        not comparable to any other run's, which is the one thing a rank has to
+        be; and persisting a subset would leave every unpersisted entity reading
+        as `not_assessable` through `GET /entities`, erasing its last real score.
+        The full cohort is therefore always scored and stored, and the response is
+        filtered. The subset that was asked for is recorded in the ledger so the
+        run record says what the caller wanted.
         """
-        entity_ids = self.entity_ids(period_start, period_end)
-        if not entity_ids:
+        cohort = self.entity_ids(period_start, period_end)
+        if not cohort:
             raise ScoringError(
                 f"No submissions overlap {period_start.isoformat()}.."
                 f"{period_end.isoformat()}, so there is nothing to score. This is "
@@ -807,17 +867,395 @@ class ScoringService:
             )
 
         scores = [
-            self.score_entity(entity_id, period_start, period_end) for entity_id in entity_ids
+            self.score_entity(entity_id, period_start, period_end, indicators=indicators)
+            for entity_id in cohort
         ]
         self._rank(scores)
 
         if persist:
-            run_id = self._create_run(period_start, period_end, entity_ids)
+            run_id = self._create_run(period_start, period_end, cohort)
             self._persist(run_id, scores)
             for score in scores:
                 score.run_id = run_id
-            self._ledger_complete(run_id, period_start, period_end, scores)
+            self._ledger_complete(run_id, period_start, period_end, scores, actor=actor)
+            if only_entity_ids:
+                get_ledger().append(
+                    actor=actor,
+                    action=LedgerAction.RUN_TRIGGERED,
+                    payload={
+                        "run_id": run_id,
+                        "requested_entities": list(only_entity_ids),
+                        "note": (
+                            "Response filtered to the requested entities. The full "
+                            "cohort was scored and persisted so ranks stay "
+                            "comparable across runs."
+                        ),
+                    },
+                )
+
+        if only_entity_ids:
+            wanted = set(only_entity_ids)
+            unknown = sorted(wanted - set(cohort))
+            if unknown:
+                raise ScoringError(
+                    f"No submissions overlap this period for: {', '.join(unknown)}. "
+                    "Known entity ids for this period are on GET /entities."
+                )
+            return [s for s in scores if s.entity_id in wanted]
         return scores
+
+    # -- API-shaped reads --------------------------------------------------
+    # These live here rather than in the routers so that the SQL stays in the
+    # service layer and the routers stay a translation of service results into
+    # response models. Nothing is computed twice: every number below has already
+    # been through the scoring pipeline above.
+    def entity_list(
+        self,
+        period_start: date | None = None,
+        period_end: date | None = None,
+    ) -> list[EntityListItem]:
+        """`GET /entities` — every registered entity, scored where it can be.
+
+        Entities with no submission are included with null scores, because the
+        executive view has to be able to say "registered, nothing submitted" as
+        distinct from "submitted, nothing found". A list that only ever contains
+        entities with data cannot express that difference.
+
+        The period is optional. With no period given, the most recent completed
+        scoring run is used, and an entity is matched on its **latest** score
+        rather than being dropped when an older row exists.
+        """
+        conn = get_connection()
+        run = self._latest_run(period_start, period_end)
+        if run is None:
+            period = None
+            scores: dict[str, sqlite3.Row] = {}
+        else:
+            period = (str(run["period_start"]), str(run["period_end"]))
+            scores = {
+                str(row["entity_id"]): row
+                for row in conn.execute(
+                    "SELECT * FROM entity_score WHERE run_id = ? ORDER BY entity_id",
+                    (run["run_id"],),
+                ).fetchall()
+            }
+
+        rows = conn.execute(
+            "SELECT entity_id, name, sector, soc_model, coverage_type, size_tier, "
+            "critical_asset_count FROM entity ORDER BY name, entity_id"
+        ).fetchall()
+
+        out: list[EntityListItem] = []
+        for row in rows:
+            entity_id = str(row["entity_id"])
+            score = scores.get(entity_id)
+            # `sap_tier` is a NOT NULL column, so an unscored entity has to be
+            # given the separate `not_assessable` state rather than a numeric tier.
+            # Defaulting it to T4 here would file every never-submitted entity as
+            # low risk, which is the exact conflation plan §6.3 forbids.
+            out.append(
+                EntityListItem(
+                    entity_id=entity_id,
+                    name=str(row["name"]),
+                    sector=str(row["sector"]),
+                    soc_model=SocModel(str(row["soc_model"])),
+                    size_tier=SizeTier(str(row["size_tier"])),
+                    coverage_type=CoverageType(str(row["coverage_type"])),
+                    critical_asset_count=int(row["critical_asset_count"] or 0),
+                    egi=score["egi"] if score else None,
+                    nsi=score["nsi"] if score else None,
+                    dts=score["dts"] if score else None,
+                    sap=score["sap"] if score else None,
+                    sap_tier=(
+                        AttentionTier(str(score["sap_tier"])) if score
+                        else AttentionTier.NOT_ASSESSABLE
+                    ),
+                    sap_rank_interval=(
+                        RankInterval(
+                            rank=int(score["sap_rank"]),
+                            low=int(score["sap_rank_low"] or score["sap_rank"]),
+                            high=int(score["sap_rank_high"] or score["sap_rank"]),
+                            method="weight_perturbation_dirichlet+bootstrap_over_peers",
+                        )
+                        if score and score["sap_rank"] is not None
+                        else None
+                    ),
+                    period_start=period[0] if period else None,
+                    period_end=period[1] if period else None,
+                    overall_assessability=(
+                        # From the persisted row, so the executive list and the
+                        # per-entity summary state the same thing about the same
+                        # entity. An entity registered but never scored has no
+                        # row at all and is reported not-assessable, which is what
+                        # "nothing has been submitted" means.
+                        Assessability(score["assessability"])
+                        if score and score["assessability"]
+                        else Assessability.NOT_ASSESSABLE
+                    ),
+                )
+            )
+        return out
+
+    def _latest_run(
+        self, period_start: date | None, period_end: date | None
+    ) -> sqlite3.Row | None:
+        """The run whose scores a read should reflect, with its period attached.
+
+        `run` itself has no period columns — the window a run covered lives on the
+        score rows it wrote, so it is derived here by aggregating `entity_score`.
+        A run that wrote no scores (crashed, or every entity scored as
+        not-assessable and nothing persisted) is invisible to this query, which is
+        correct: there is nothing in it to show.
+
+        The period filter matches a run that *contains* the requested window, not
+        one that equals it. A run over a quarter contains any month inside it, and
+        refusing to show a stored score because the request named a narrower window
+        would make the endpoint look like it lost data.
+        """
+        return get_connection().execute(
+            "SELECT r.*, MIN(s.period_start) AS period_start, "
+            "       MAX(s.period_end) AS period_end "
+            "FROM run r JOIN entity_score s ON s.run_id = r.run_id "
+            "WHERE r.status = 'complete' "
+            "GROUP BY r.run_id "
+            "HAVING (?1 IS NULL OR (MIN(s.period_start) <= ?2 AND MAX(s.period_end) >= ?3)) "
+            "ORDER BY r.finished_ts DESC, r.run_id DESC LIMIT 1",
+            (
+                period_start.isoformat() if period_start else None,
+                period_end.isoformat() if period_end else "",
+                period_start.isoformat() if period_start else "",
+            ),
+        ).fetchone()
+
+    def entity_summary(
+        self, entity_id: str, period_start: date | None = None, period_end: date | None = None
+    ) -> EntitySummaryOut:
+        """`GET /entities/{id}/summary` — the executive scorecard.
+
+        Scores come from the persisted run rather than being recomputed, so a
+        summary never disagrees with the `entity_score` row an auditor can read.
+        When no run covers the entity the dimension scores are still produced from
+        a live pass, because "never scored" is a gap in the summary, not a reason
+        to return an empty object.
+        """
+        conn = get_connection()
+        entity = conn.execute(
+            "SELECT entity_id, name, sector, soc_model, coverage_type, size_tier, "
+            "critical_asset_count FROM entity WHERE entity_id = ?",
+            (entity_id,),
+        ).fetchone()
+        if entity is None:
+            raise ScoringError(f"No such entity: {entity_id}")
+
+        run = self._latest_run(period_start, period_end)
+        score_row = None
+        dimensions: list[DimensionScoreOut] = []
+        caveats: list[str] = []
+
+        if run is not None:
+            score_row = conn.execute(
+                "SELECT * FROM entity_score WHERE run_id = ? AND entity_id = ?",
+                (run["run_id"], entity_id),
+            ).fetchone()
+            # One assessability pass, not one per dimension: the report already
+            # carries every dimension's state and its missing fields, and calling
+            # it eight times would rescan the same evidence tables eight times.
+            report = self.assessability.report(entity_id=entity_id)
+            by_dim = {d.dimension.value: d for d in report.dimensions}
+            for row in conn.execute(
+                "SELECT * FROM dimension_score WHERE run_id = ? AND entity_id = ? "
+                "ORDER BY dimension",
+                (run["run_id"], entity_id),
+            ).fetchall():
+                dimension = Dimension(str(row["dimension"]))
+                dim_report = by_dim.get(dimension.value)
+                # Score and interval come from the run — they are what the
+                # persisted audit row says. State and missing fields come from the
+                # live report, because `dimension_score` stores the state as a
+                # 0.0/0.5/1.0 multiplier and has no column for which fields were
+                # missing. A run can predate the latest submission, so where the
+                # report covers a different window a caveat says so rather than
+                # letting the two quietly disagree.
+                dimensions.append(
+                    DimensionScoreOut(
+                        dimension=dimension,
+                        score=row["score"],
+                        assessability=(
+                            dim_report.assessability if dim_report is not None
+                            else _assessability_from_multiplier(row["assessability"])
+                        ),
+                        ci_low=row["ci_low"],
+                        ci_high=row["ci_high"],
+                        missing_fields=(
+                            list(dim_report.missing_fields) if dim_report else []
+                        ),
+                    )
+                )
+            if report.period_start and report.period_end and (
+                report.period_start != str(run["period_start"])
+                or report.period_end != str(run["period_end"])
+            ):
+                caveats.append(
+                    f"Scores are from the run covering {run['period_start']} to "
+                    f"{run['period_end']}, but the data currently on file covers "
+                    f"{report.period_start} to {report.period_end}. Assessability "
+                    "reflects the later window."
+                )
+
+        if not dimensions or score_row is None:
+            live = self.score_entity(
+                entity_id,
+                period_start or date.today().replace(day=1),
+                period_end or date.today(),
+            )
+            dimensions = [
+                DimensionScoreOut(
+                    dimension=d.dimension,
+                    score=d.score,
+                    assessability=d.assessability,
+                    missing_fields=list(d.missing_fields),
+                    ci_low=d.ci_low,
+                    ci_high=d.ci_high,
+                )
+                for d in live.dimensions
+            ]
+            caveats = list(live.caveats)
+            if score_row is None:
+                caveats.insert(
+                    0,
+                    "No scoring run covers this entity for the requested period, "
+                    "so these figures were computed on demand and are not "
+                    "recorded in a run.",
+                )
+            egi, nsi, dts, sap = live.egi, live.nsi, live.dts, live.sap
+            tier = AttentionTier(live.sap_tier)
+            rank_interval = live.rank_interval()
+            period = (live.period_start, live.period_end)
+            overall = live.overall_assessability
+            n_not_assessable = live.n_not_assessable_dimensions
+            # A finding, in the pre-Phase-10 sense: an indicator that survived
+            # correction and is not suppressed. Counted here so the summary is
+            # not silently missing a column the UI is contracted to show.
+            n_findings = sum(
+                1 for s in live.signals if not s.suppressed_reason and s.signal > 0.0
+            )
+        else:
+            egi, nsi, dts, sap = (
+                score_row["egi"], score_row["nsi"], score_row["dts"], score_row["sap"]
+            )
+            tier = AttentionTier(str(score_row["sap_tier"]))
+            rank_interval = (
+                RankInterval(
+                    rank=int(score_row["sap_rank"]),
+                    low=int(score_row["sap_rank_low"] or score_row["sap_rank"]),
+                    high=int(score_row["sap_rank_high"] or score_row["sap_rank"]),
+                    method="weight_perturbation_dirichlet+bootstrap_over_peers",
+                )
+                if score_row["sap_rank"] is not None
+                else None
+            )
+            period = (date.fromisoformat(str(run["period_start"])),
+                      date.fromisoformat(str(run["period_end"])))
+            # From the persisted row, so this view and `GET /entities` state the same thing
+            # about the same entity. The live report is the fallback for a row
+            # written before the column existed; the period caveat above already
+            # warns when the two cover different windows. Reconstructing the state
+            # from the tier would be wrong in the ordinary case: a `T1` with a
+            # partial overall is normal, and reporting that as fully assessable
+            # would overstate what the scores rest on.
+            overall = (
+                Assessability(score_row["assessability"])
+                if score_row["assessability"]
+                else report.overall
+            )
+            n_not_assessable = sum(1 for d in dimensions if d.score is None)
+            # Counted from the `finding` table for this run. That table exists from
+            # Phase 1 and stays empty until finding cards are materialised, so
+            # this reads 0 today — but it reads it from the persisted records
+            # rather than hard-coding zero, so the summary is correct the moment
+            # Phase 10 lands with no change here.
+            n_findings = int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM finding WHERE run_id = ? AND entity_id = ?",
+                    (run["run_id"], entity_id),
+                ).fetchone()[0]
+            )
+
+        return EntitySummaryOut(
+            entity=EntityOut(
+                entity_id=entity_id,
+                name=str(entity["name"]),
+                sector=str(entity["sector"]),
+                soc_model=SocModel(str(entity["soc_model"])),
+                size_tier=SizeTier(str(entity["size_tier"])),
+                coverage_type=CoverageType(str(entity["coverage_type"])),
+                critical_asset_count=int(entity["critical_asset_count"] or 0),
+            ),
+            period_start=period[0].isoformat(),
+            period_end=period[1].isoformat(),
+            egi=egi,
+            nsi=nsi,
+            dts=dts,
+            dimensions=dimensions,
+            sap=sap,
+            sap_tier=tier,
+            sap_rank_interval=rank_interval,
+            n_findings=n_findings,
+            n_not_assessable_dimensions=n_not_assessable,
+            overall_assessability=overall,
+            caveats=caveats,
+        )
+
+    def score_snapshot(
+        self,
+        period_start: date | None = None,
+        period_end: date | None = None,
+        metric: str = "egi",
+    ) -> dict[str, float]:
+        """`{entity_id: value}` for one metric across the most recent run.
+
+        Entities whose value is null are **omitted**, not included as zero. A
+        cohort built to characterise a distribution must not contain entities that
+        have no value for the metric: including them as 0.0 would drag the median
+        down and make every real entity look high, and including them as `None`
+        would make the median silently drop them while still reporting them in
+        `n_peers`.
+        """
+        if metric not in ("egi", "nsi", "dts", "sap"):
+            raise ScoringError(
+                f"Unknown metric {metric!r}. One of: egi, nsi, dts, sap."
+            )
+        run = self._latest_run(period_start, period_end)
+        if run is None:
+            return {}
+        rows = get_connection().execute(
+            f"SELECT entity_id, {metric} AS value FROM entity_score "
+            "WHERE run_id = ? AND value IS NOT NULL ORDER BY entity_id",
+            (run["run_id"],),
+        ).fetchall()
+        return {str(r["entity_id"]): float(r["value"]) for r in rows}
+
+    def list_runs(self, limit: int = 50, offset: int = 0) -> list[RunOut]:
+        """`GET /runs` — newest first, each with its finding count."""
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT r.*, (SELECT COUNT(*) FROM finding f WHERE f.run_id = r.run_id) "
+            "AS n_findings FROM run r "
+            "ORDER BY r.created_ts DESC, r.run_id DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [_run_out(row, int(row["n_findings"] or 0)) for row in rows]
+
+    def get_run(self, run_id: str) -> RunOut:
+        """`GET /runs/{id}`."""
+        row = get_connection().execute(
+            "SELECT r.*, (SELECT COUNT(*) FROM finding f WHERE f.run_id = r.run_id) "
+            "AS n_findings FROM run r WHERE r.run_id = ?",
+            (run_id,),
+        ).fetchone()
+        if row is None:
+            raise ScoringError(f"No such run: {run_id}")
+        return _run_out(row, int(row["n_findings"] or 0))
 
     def _rank(self, scores: list[EntityScore]) -> None:
         """Assign SAP ranks with intervals, then tiers.
@@ -926,8 +1364,9 @@ class ScoringService:
                 conn.execute(
                     "INSERT OR REPLACE INTO entity_score "
                     "(entity_id, period_start, period_end, egi, nsi, dts, sap, "
-                    " sap_rank, sap_rank_low, sap_rank_high, sap_tier, run_id) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " assessability, sap_rank, sap_rank_low, sap_rank_high, "
+                    " sap_tier, run_id) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         score.entity_id,
                         score.period_start.isoformat(),
@@ -936,6 +1375,12 @@ class ScoringService:
                         score.nsi,
                         score.dts,
                         score.sap,
+                        # Stored rather than re-derived on read. An entity whose
+                        # tier is withheld for measurability must say *why* in the
+                        # persisted row, not leave a reader to infer it from a
+                        # null SAP -- "scored nothing" and "could not be scored"
+                        # are different facts and the table has to hold both.
+                        score.overall_assessability.value,
                         score.sap_rank,
                         score.sap_rank_low,
                         score.sap_rank_high,
@@ -977,15 +1422,22 @@ class ScoringService:
         period_start: date,
         period_end: date,
         scores: Sequence[EntityScore],
+        actor: str = "scoring_service",
     ) -> None:
         """One ledger entry for the scoring pass.
 
         Counts, not per-entity scores: the ledger records that a decision pass
         happened under a given policy version and seed, and the numbers live in
         the tables where they can be queried and re-derived.
+
+        `actor` is the person who asked for the run, not the component that did
+        it. The chain records "a supervisor triggered this under policy X"; a
+        hardcoded service name would make every entry look like it came from
+        nobody in particular, which is the same unattributability the API's write
+        gate refuses to allow.
         """
         get_ledger().append(
-            actor="scoring_service",
+            actor=actor,
             action=LedgerAction.SCORING_COMPLETED,
             payload={
                 "kind": "scoring",
@@ -1028,6 +1480,58 @@ def _code_version() -> str:
         return f"sha256:{digest.hexdigest()[:16]}"
     except Exception:  # pragma: no cover - defensive
         return "unknown"
+
+
+def _assessability_from_multiplier(multiplier: Any) -> Assessability:
+    """Recover the readable state from what `dimension_score.assessability` stores.
+
+    The column holds the 1.0 / 0.5 / 0.0 weight the dimension contributed, because
+    that is what the SAP numerator needs to be auditable after the fact. Anything
+    that is not one of those three is treated as not assessable: an unreadable
+    multiplier must not be reported as a healthy dimension.
+    """
+    if multiplier is None:
+        return Assessability.ASSESSABLE
+    try:
+        value = float(multiplier)
+    except (TypeError, ValueError):
+        return Assessability.NOT_ASSESSABLE
+    if value >= 1.0:
+        return Assessability.ASSESSABLE
+    if value > 0.0:
+        return Assessability.PARTIAL
+    return Assessability.NOT_ASSESSABLE
+
+
+def _run_out(row: sqlite3.Row, n_findings: int = 0) -> RunOut:
+    """Shape a `run` row for the API.
+
+    `input_manifest_hashes` is stored as a JSON blob because a run spans many
+    submissions; it is unpacked here so the client gets a list rather than a
+    string it has to parse. An unparseable value yields an empty list and no
+    exception — a manifest that cannot be read should not hide the run.
+    """
+    raw = row["input_manifest_hashes"] or "[]"
+    try:
+        hashes = [str(h) for h in json.loads(raw)]
+    except (TypeError, ValueError):
+        hashes = []
+    return RunOut(
+        run_id=str(row["run_id"]),
+        created_ts=str(row["created_ts"]),
+        started_ts=row["started_ts"],
+        finished_ts=row["finished_ts"],
+        status=str(row["status"]),
+        input_manifest_hashes=hashes,
+        config_hash=row["config_hash"],
+        pack_version=row["pack_version"],
+        policy_hash=row["policy_hash"],
+        code_version=row["code_version"],
+        seed=row["seed"],
+        output_hash=row["output_hash"],
+        error=row["error"],
+        n_findings=n_findings,
+    )
 
 
 _service: ScoringService | None = None

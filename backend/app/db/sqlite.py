@@ -268,6 +268,14 @@ CREATE TABLE IF NOT EXISTS entity_score (
     nsi             REAL,
     dts             REAL,
     sap             REAL,
+    -- The entity-level assessability the scorer computed, stored rather than
+    -- re-derived at read time. Without it the executive list had to infer
+    -- assessability from "a score row exists", which reports an entity with two
+    -- measurable dimensions out of eight as fully assessable while the tier is
+    -- simultaneously withheld. The summary read the live report and said
+    -- something different, so the two views of one entity disagreed.
+    assessability   TEXT CHECK (assessability IS NULL OR assessability IN
+                        ('assessable','partial','not_assessable')),
     sap_rank        INTEGER,
     sap_rank_low    INTEGER,
     sap_rank_high   INTEGER,
@@ -519,16 +527,23 @@ def init_db() -> None:
     settings.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     conn = get_connection()
     conn.executescript(_DDL)
-    # Column added after v2 was already applied anywhere, so the CREATE TABLE
-    # IF NOT EXISTS above will not add it. ALTER is idempotent via the guard.
+    # Columns added after v2/v3 were already applied anywhere, so the CREATE TABLE
+    # IF NOT EXISTS above will not add them. ALTER is idempotent via the guard.
     columns = {
         row["name"] for row in conn.execute("PRAGMA table_info(submission)")
     }
     if "approved_profile_id" not in columns:
         conn.execute("ALTER TABLE submission ADD COLUMN approved_profile_id TEXT")
+    score_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(entity_score)")
+    }
+    if "assessability" not in score_columns:
+        conn.execute("ALTER TABLE entity_score ADD COLUMN assessability TEXT")
+    # Migration log in application order (ascending), so the sequence reads the
+    # way it happened rather than the way it was coded.
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
-        "VALUES (3, datetime('now'), 'submission.approved_profile_id added')"
+        "VALUES (1, datetime('now'), 'initial v2 schema')"
     )
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
@@ -536,7 +551,11 @@ def init_db() -> None:
     )
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
-        "VALUES (1, datetime('now'), 'initial v2 schema')"
+        "VALUES (3, datetime('now'), 'submission.approved_profile_id added')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
+        "VALUES (4, datetime('now'), 'entity_score.assessability added')"
     )
 
 

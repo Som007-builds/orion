@@ -1380,17 +1380,31 @@ class RulesEngine:
         )
 
     def run_all(
-        self, entity_id: str, period_start: date, period_end: date
+        self,
+        entity_id: str,
+        period_start: date,
+        period_end: date,
+        only: Sequence[str] | None = None,
     ) -> dict[str, IndicatorResult]:
         """Every P0 indicator plus the NS reference stubs, keyed by id.
+
+        `only` restricts the set to named indicator ids. It is a scoping filter
+        for a targeted run, not a selection mechanism: an id that does not exist
+        is an error rather than a silent omission, because a request naming an
+        indicator Orion does not have should not come back looking like a
+        successful narrower run.
 
         An exception in one indicator becomes a marked not-assessable result
         rather than aborting the set. One faulty detector must not cost the
         examiner the other five.
         """
         period = Period(start=period_start, end=period_end)
+        wanted = set(only) if only is not None else None
+
         out: dict[str, IndicatorResult] = {}
         for spec in SPECS:
+            if wanted is not None and spec.indicator_id not in wanted:
+                continue
             try:
                 out[spec.indicator_id] = self.run(
                     spec.indicator_id, entity_id, period_start, period_end
@@ -1411,8 +1425,22 @@ class RulesEngine:
                     ),
                 )
         for indicator_id in NS_INDICATOR_IDS:
+            if wanted is not None and indicator_id not in wanted:
+                continue
             out[indicator_id] = self.ns_stub(indicator_id, entity_id, period_start, period_end)
+
+        if wanted is not None:
+            missing = sorted(wanted - set(out))
+            if missing:
+                raise KeyError(
+                    f"Unknown indicator id(s): {', '.join(missing)}. "
+                    f"Known ids: {', '.join(sorted(self.catalogue_ids()))}."
+                )
         return out
+
+    def catalogue_ids(self) -> list[str]:
+        """Every indicator id this engine can produce, implemented and stub."""
+        return [spec.indicator_id for spec in SPECS] + list(NS_INDICATOR_IDS)
 
     def implemented_evidence(self) -> list[str]:
         """Indicators with a real detector behind them, in catalogue order."""

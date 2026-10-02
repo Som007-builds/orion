@@ -81,6 +81,30 @@ class LedgerVerifyResult:
     break_reason: str | None = None
 
 
+def _entry_from_row(row: Any) -> "LedgerEntry":
+    """Shape a `ledger_entry` row, decoding the payload column.
+
+    `payload` is stored as the exact canonical JSON string that was hashed. It is
+    decoded here rather than left as a string so every reader of the ledger gets a
+    dict — a caller that had to remember to `json.loads` was a caller that would
+    eventually forget, and an audit viewer that renders `{"kind": "scoring"...}`
+    as literal text is not an audit viewer.
+
+    An undecodable payload becomes `None`, not an exception. The chain is still
+    verifiable without it — `payload_hash` and `entry_hash` are stored
+    separately — so a row with a corrupt payload column is a finding about that
+    row, not a reason to fail the whole page and hide the other entries.
+    """
+    data = dict(row)
+    raw = data.get("payload")
+    if isinstance(raw, str):
+        try:
+            data["payload"] = json.loads(raw) if raw else None
+        except ValueError:
+            data["payload"] = None
+    return LedgerEntry(**data)
+
+
 def _canonical_payload(payload: dict[str, Any] | None) -> str:
     """Deterministic serialisation.
 
@@ -195,8 +219,12 @@ class Ledger:
                     entries_checked=checked,
                     first_break_seq=seq,
                     break_reason=(
-                        f"prev_hash mismatch: stored {row['prev_hash'][:16]}…, "
-                        f"expected {expected_prev[:16]}…"
+                        # Full hashes, not truncated. This string is the thing an
+                        # examiner quotes when the chain breaks, and a 16-character
+                        # prefix is not enough to identify the stored value they are
+                        # being asked to account for.
+                        f"prev_hash mismatch: stored {row['prev_hash']}, "
+                        f"expected {expected_prev}"
                     ),
                 )
 
@@ -213,7 +241,13 @@ class Ledger:
                     head_hash=expected_prev,
                     entries_checked=checked,
                     first_break_seq=seq,
-                    break_reason="entry_hash does not match recomputed chain hash",
+                    break_reason=(
+                        # Both values in full: "which hash and which recomputed
+                        # one" is the whole question, and a prefix comparison is
+                        # not something an examiner should have to do by eye.
+                        f"entry_hash mismatch at seq {seq}: stored "
+                        f"{row['entry_hash']}, recomputed {recomputed}"
+                    ),
                 )
 
             # The payload is stored alongside its hash; verify the two agree, so
@@ -230,7 +264,13 @@ class Ledger:
                         head_hash=expected_prev,
                         entries_checked=checked,
                         first_break_seq=seq,
-                        break_reason="payload no longer matches its recorded hash",
+                        break_reason=(
+                            # The payload was edited. The stored hash is named so
+                            # the two can be compared without opening the database.
+                            f"payload no longer matches its recorded hash: stored "
+                            f"{row['payload_hash']}, recomputed "
+                            f"{recomputed_payload_hash}"
+                        ),
                     )
 
             expected_prev = row["entry_hash"]
@@ -267,7 +307,37 @@ class Ledger:
             f"SELECT * FROM ledger_entry {where} ORDER BY seq DESC LIMIT ? OFFSET ?",
             params,
         )
-        return [LedgerEntry(**dict(row)) for row in rows]
+        return [_entry_from_row(row) for row in rows]
+
+    def count(
+        self,
+        action: str | None = None,
+        actor: str | None = None,
+        entity_id: str | None = None,
+    ) -> int:
+        """How many entries match the same filters `page` accepts.
+
+        Counted rather than inferred from the page size. A ledger browser that
+        reports `has_more: false` because the last page happened to be full is a
+        browser that silently truncates an audit trail, which is the one thing a
+        ledger view must not do.
+        """
+        clauses: list[str] = []
+        params: list[Any] = []
+        if action:
+            clauses.append("action = ?")
+            params.append(action)
+        if actor:
+            clauses.append("actor = ?")
+            params.append(actor)
+        if entity_id:
+            clauses.append("entity_id = ?")
+            params.append(entity_id)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        row = get_connection().execute(
+            f"SELECT COUNT(*) FROM ledger_entry {where}", params
+        ).fetchone()
+        return int(row[0]) if row else 0
 
 
 _ledger: Ledger | None = None

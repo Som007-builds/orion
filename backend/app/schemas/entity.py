@@ -85,6 +85,16 @@ class EntitySummaryOut(OrionModel):
     n_findings: int = Field(0, ge=0)
     n_not_assessable_dimensions: int = Field(0, ge=0)
 
+    overall_assessability: Assessability = Field(
+        Assessability.NOT_ASSESSABLE,
+        description=(
+            "Whole-entity state. Kept separate from `sap_tier` because an entity "
+            "can be tiered for attention while being only partially assessable — "
+            "collapsing the two would tell a supervisor that a figure is solid "
+            "when what is actually solid is a fraction of it."
+        ),
+    )
+
     caveats: list[str] = Field(
         default_factory=list,
         description="Plain-language reasons the result is incomplete or uncertain",

@@ -140,10 +140,22 @@ class MappingOut(OrionModel):
 
 
 class MappingApprovalIn(OrionModel):
-    """`POST /submissions/{id}/mapping/approve`. Ledgered."""
+    """`POST /submissions/{id}/mapping/approve`. Ledgered.
+
+    `column_map` accepts two shapes, because a flat one cannot express a real
+    case. Flat (`{source: target}`) applies one mapping across the whole
+    submission. Per-file (`{filename: {source: target}}`) exists for a submission
+    whose alert export and case export both carry a `notes` column, where the
+    alert's free-text rule description is not the same fact as the case's
+    investigation note — flattening those would have to pick one and the other
+    file would load with the field silently missing.
+
+    The service accepts both and stores the flat form per-file too, so the read
+    side never has two shapes to reason about.
+    """
 
     profile_id: str | None = None
-    column_map: dict[str, str] = Field(default_factory=dict)
+    column_map: dict[str, str | dict[str, str]] = Field(default_factory=dict)
     severity_map: dict[str, str] = Field(default_factory=dict)
     status_map: dict[str, str] = Field(default_factory=dict)
     timezone: str | None = None
@@ -156,6 +168,23 @@ class MappingApprovalOut(OrionModel):
     approved: bool
     ledger_entry_hash: str
     approved_at: str
+    approved_by: str | None = Field(
+        None, description="Who approved it, as recorded in the ledger"
+    )
+
+
+class SubmissionDetail(OrionModel):
+    """`GET /submissions/{id}` — what arrived, and what it can support.
+
+    Both halves in one response because the two questions are never asked apart:
+    an examiner looking at a submission is always also asking whether it is
+    usable. Splitting them into two round trips invites the frontend to render
+    the record without the quality report, which is how a Tier-C export ends up
+    presented as though it were a full one.
+    """
+
+    submission: SubmissionOut
+    data_quality: DQReportOut
 
 
 class UploadAccepted(OrionModel):

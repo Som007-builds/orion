@@ -71,6 +71,20 @@ def get_settings() -> Settings:
     return settings
 
 
+def is_development() -> bool:
+    """Whether the dev fallbacks in this codebase are reachable.
+
+    Anything other than an explicit `dev` counts as a real deployment. The
+    asymmetry is deliberate: a typo'd `ORION_ENV=produciton` must not silently
+    hand out derived secrets or permit unattributed writes. One definition, used
+    by `resolve_secret` and by the API's write gate, so those two cannot drift
+    into disagreeing about whether a deployment is real.
+    """
+    import os
+
+    return os.environ.get("ORION_ENV", "dev") == "dev"
+
+
 def resolve_secret(handle: str) -> bytes:
     """Resolve a secret handle to key material held outside the repo.
 
@@ -95,7 +109,7 @@ def resolve_secret(handle: str) -> bytes:
         if key_file.is_file():
             return key_file.read_bytes().strip()
 
-    if os.environ.get("ORION_ENV", "dev") == "dev":
+    if is_development():
         # Deterministic so pseudonymisation is stable across restarts in dev.
         # Never reachable in a non-dev deployment.
         import hashlib

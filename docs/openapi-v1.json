@@ -1,0 +1,6005 @@
+{
+  "components": {
+    "schemas": {
+      "Assessability": {
+        "description": "Per-dimension assessability (plan \u00a74.4).",
+        "enum": [
+          "assessable",
+          "partial",
+          "not_assessable"
+        ],
+        "title": "Assessability",
+        "type": "string"
+      },
+      "AssessabilityReport": {
+        "additionalProperties": false,
+        "description": "`GET /entities/{id}/assessability`.",
+        "properties": {
+          "data_tier": {
+            "$ref": "#/components/schemas/DataTier"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/DimensionAssessability"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "interpretation": {
+            "description": "Plain-language statement of what can and cannot be assessed",
+            "title": "Interpretation",
+            "type": "string"
+          },
+          "n_assessable": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Assessable",
+            "type": "integer"
+          },
+          "n_not_assessable": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Not Assessable",
+            "type": "integer"
+          },
+          "n_partial": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Partial",
+            "type": "integer"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/Assessability"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "submission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Id"
+          },
+          "upgrade_guidance": {
+            "description": "What data would raise coverage \u2014 e.g. 'export case_event history to enable EG-04, EG-12, EG-13'.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Upgrade Guidance",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entity_id",
+          "overall",
+          "data_tier",
+          "interpretation"
+        ],
+        "title": "AssessabilityReport",
+        "type": "object"
+      },
+      "AttentionTier": {
+        "description": "SAP tiers (plan \u00a76.3).\n\n`NOT_ASSESSABLE` is a separate state, not a low tier. An entity that cannot\nbe assessed must not be ranked as if it were low risk.",
+        "enum": [
+          "T1",
+          "T2",
+          "T3",
+          "T4",
+          "not_assessable"
+        ],
+        "title": "AttentionTier",
+        "type": "string"
+      },
+      "BenchmarkOut": {
+        "additionalProperties": false,
+        "description": "`GET /benchmarks` \u2014 cohort baselines.",
+        "properties": {
+          "cohort": {
+            "title": "Cohort",
+            "type": "string"
+          },
+          "fell_back_to_covariate_model": {
+            "default": false,
+            "title": "Fell Back To Covariate Model",
+            "type": "boolean"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "n_peers": {
+            "minimum": 0.0,
+            "title": "N Peers",
+            "type": "integer"
+          },
+          "peer_mad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Mad"
+          },
+          "peer_median": {
+            "title": "Peer Median",
+            "type": "number"
+          }
+        },
+        "required": [
+          "cohort",
+          "metric",
+          "n_peers",
+          "peer_median",
+          "method"
+        ],
+        "title": "BenchmarkOut",
+        "type": "object"
+      },
+      "Body_upload_api_v1_ingest_upload_post": {
+        "properties": {
+          "declared_kpis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional JSON object of the entity's own declared KPIs, e.g. {\"mttr_minutes\": 45}. Taken as the submission states them, not as Orion's measurement \u2014 the distinction is what stops a declared figure from being read as a computed one.",
+            "title": "Declared Kpis"
+          },
+          "entity_id": {
+            "description": "Entity the submission is for",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "binary",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "One or more source files. At least one is required.",
+            "title": "Files"
+          },
+          "period_end": {
+            "description": "Inclusive, YYYY-MM-DD",
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "description": "Inclusive, YYYY-MM-DD",
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_id",
+          "period_start",
+          "period_end"
+        ],
+        "title": "Body_upload_api_v1_ingest_upload_post",
+        "type": "object"
+      },
+      "CoverageType": {
+        "enum": [
+          "24x7",
+          "extended",
+          "business"
+        ],
+        "title": "CoverageType",
+        "type": "string"
+      },
+      "DQComponentOut": {
+        "additionalProperties": false,
+        "properties": {
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "weight": {
+            "minimum": 0.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "component",
+          "score",
+          "weight"
+        ],
+        "title": "DQComponentOut",
+        "type": "object"
+      },
+      "DQReportOut": {
+        "additionalProperties": false,
+        "description": "`GET /submissions/{id}` \u2014 data quality, fully decomposed.",
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/DQComponentOut"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "data_tier": {
+            "$ref": "#/components/schemas/DataTier"
+          },
+          "dq_score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Dq Score",
+            "type": "number"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "interpretation": {
+            "description": "Plain-language statement of what this submission can and cannot support. Never presented as a quality verdict on the entity.",
+            "title": "Interpretation",
+            "type": "string"
+          },
+          "n_rows_loaded": {
+            "minimum": 0.0,
+            "title": "N Rows Loaded",
+            "type": "integer"
+          },
+          "n_rows_quarantined": {
+            "minimum": 0.0,
+            "title": "N Rows Quarantined",
+            "type": "integer"
+          },
+          "quarantine_summary": {
+            "items": {
+              "$ref": "#/components/schemas/QuarantineSummaryOut"
+            },
+            "title": "Quarantine Summary",
+            "type": "array"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "submission_id",
+          "entity_id",
+          "dq_score",
+          "data_tier",
+          "n_rows_loaded",
+          "n_rows_quarantined",
+          "interpretation"
+        ],
+        "title": "DQReportOut",
+        "type": "object"
+      },
+      "DataTier": {
+        "description": "Submission completeness tiers (plan \u00a73.15).",
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "DataTier",
+        "type": "string"
+      },
+      "Dimension": {
+        "description": "The eight capability dimensions (plan \u00a74.3). All are represented.",
+        "enum": [
+          "TD",
+          "INV",
+          "ESC",
+          "IR",
+          "SO",
+          "GOV",
+          "OD",
+          "CR"
+        ],
+        "title": "Dimension",
+        "type": "string"
+      },
+      "DimensionAssessability": {
+        "additionalProperties": false,
+        "description": "Assessability for one capability dimension.",
+        "properties": {
+          "achieved_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "affected_indicators": {
+            "description": "Indicators blocked by this dimension's gaps",
+            "items": {
+              "type": "string"
+            },
+            "title": "Affected Indicators",
+            "type": "array"
+          },
+          "assessability": {
+            "$ref": "#/components/schemas/Assessability"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "min_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "missing_fields": {
+            "description": "Always populated when not fully assessable \u2014 never omitted",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "required_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dimension",
+          "assessability"
+        ],
+        "title": "DimensionAssessability",
+        "type": "object"
+      },
+      "DimensionScoreOut": {
+        "additionalProperties": false,
+        "properties": {
+          "assessability": {
+            "$ref": "#/components/schemas/Assessability"
+          },
+          "ci_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci High"
+          },
+          "ci_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Low"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when Not assessable \u2014 never 0.0 as a substitute",
+            "title": "Score"
+          }
+        },
+        "required": [
+          "dimension",
+          "assessability"
+        ],
+        "title": "DimensionScoreOut",
+        "type": "object"
+      },
+      "EntityListItem": {
+        "additionalProperties": false,
+        "description": "Entity plus its supervisory scores, for the executive view.",
+        "properties": {
+          "coverage_type": {
+            "$ref": "#/components/schemas/CoverageType"
+          },
+          "critical_asset_count": {
+            "minimum": 0.0,
+            "title": "Critical Asset Count",
+            "type": "integer"
+          },
+          "dts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Data Trust Score 0..1 \u2014 confidence the submission supports assessment",
+            "title": "Dts"
+          },
+          "egi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Execution Gap Index 0..1",
+            "title": "Egi"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nsi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Negative Space Index 0..1",
+            "title": "Nsi"
+          },
+          "overall_assessability": {
+            "$ref": "#/components/schemas/Assessability",
+            "default": "assessable"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "sap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Supervisory Attention Priority",
+            "title": "Sap"
+          },
+          "sap_rank_interval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RankInterval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sap_tier": {
+            "$ref": "#/components/schemas/AttentionTier"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "size_tier": {
+            "$ref": "#/components/schemas/SizeTier"
+          },
+          "soc_model": {
+            "$ref": "#/components/schemas/SocModel"
+          }
+        },
+        "required": [
+          "entity_id",
+          "name",
+          "sector",
+          "soc_model",
+          "size_tier",
+          "coverage_type",
+          "critical_asset_count",
+          "sap_tier"
+        ],
+        "title": "EntityListItem",
+        "type": "object"
+      },
+      "EntityOut": {
+        "additionalProperties": false,
+        "description": "Row in `GET /entities`.",
+        "properties": {
+          "coverage_type": {
+            "$ref": "#/components/schemas/CoverageType"
+          },
+          "critical_asset_count": {
+            "minimum": 0.0,
+            "title": "Critical Asset Count",
+            "type": "integer"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "size_tier": {
+            "$ref": "#/components/schemas/SizeTier"
+          },
+          "soc_model": {
+            "$ref": "#/components/schemas/SocModel"
+          }
+        },
+        "required": [
+          "entity_id",
+          "name",
+          "sector",
+          "soc_model",
+          "size_tier",
+          "coverage_type",
+          "critical_asset_count"
+        ],
+        "title": "EntityOut",
+        "type": "object"
+      },
+      "EntitySummaryOut": {
+        "additionalProperties": false,
+        "description": "`GET /entities/{id}/summary` \u2014 the executive scorecard.",
+        "properties": {
+          "caveats": {
+            "description": "Plain-language reasons the result is incomplete or uncertain",
+            "items": {
+              "type": "string"
+            },
+            "title": "Caveats",
+            "type": "array"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/DimensionScoreOut"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "dts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dts"
+          },
+          "egi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Egi"
+          },
+          "entity": {
+            "$ref": "#/components/schemas/EntityOut"
+          },
+          "n_findings": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Findings",
+            "type": "integer"
+          },
+          "n_not_assessable_dimensions": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Not Assessable Dimensions",
+            "type": "integer"
+          },
+          "nsi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nsi"
+          },
+          "overall_assessability": {
+            "$ref": "#/components/schemas/Assessability",
+            "default": "not_assessable",
+            "description": "Whole-entity state. Kept separate from `sap_tier` because an entity can be tiered for attention while being only partially assessable \u2014 collapsing the two would tell a supervisor that a figure is solid when what is actually solid is a fraction of it."
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "sap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sap"
+          },
+          "sap_rank_interval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RankInterval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sap_tier": {
+            "$ref": "#/components/schemas/AttentionTier"
+          }
+        },
+        "required": [
+          "entity",
+          "period_start",
+          "period_end",
+          "sap_tier"
+        ],
+        "title": "EntitySummaryOut",
+        "type": "object"
+      },
+      "ExportFormat": {
+        "description": "The eight output formats. Frozen: this is the answer to the open question.",
+        "enum": [
+          "csv",
+          "json",
+          "parquet",
+          "ndjson",
+          "xlsx",
+          "pdf",
+          "docx",
+          "md"
+        ],
+        "title": "ExportFormat",
+        "type": "string"
+      },
+      "ExportFormatInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "extension": {
+            "title": "Extension",
+            "type": "string"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ExportFormat"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "renders": {
+            "description": "What this format is a rendering of, in one line.",
+            "title": "Renders",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "mime_type",
+          "extension",
+          "renders"
+        ],
+        "title": "ExportFormatInfo",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IndicatorCatalogueItem": {
+        "additionalProperties": false,
+        "description": "`GET /indicators` \u2014 one indicator, described rather than measured.",
+        "properties": {
+          "adverse_direction": {
+            "description": "'low' when a low value is adverse, 'high' when high is",
+            "title": "Adverse Direction",
+            "type": "string"
+          },
+          "benign_explanations": {
+            "description": "Non-adverse explanations carried on every finding card this indicator produces. Published here so the frontend can render them without having to read the rules engine.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Benign Explanations",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "min_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minimum data tier for this indicator to be assessable",
+            "title": "Min Tier"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_dimension": {
+            "title": "Primary Dimension",
+            "type": "string"
+          },
+          "required_fields": {
+            "description": "Fields whose absence blocks the indicator",
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Fields",
+            "type": "array"
+          },
+          "secondary_dimensions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secondary Dimensions",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "description": "'implemented' where Orion has a real detector; 'reference_stub' where the detector is Dev 3's and returns no score by design. A stub is published rather than hidden so that an entity scoring 0 on a negative-space dimension is distinguishable from one where the negative-space detectors never ran.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "indicator_id",
+          "name",
+          "description",
+          "family",
+          "primary_dimension",
+          "adverse_direction",
+          "source",
+          "status"
+        ],
+        "title": "IndicatorCatalogueItem",
+        "type": "object"
+      },
+      "IngestionJobOut": {
+        "additionalProperties": false,
+        "properties": {
+          "created_ts": {
+            "title": "Created Ts",
+            "type": "string"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished Ts"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "n_loaded": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Loaded",
+            "type": "integer"
+          },
+          "n_quarantined": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Quarantined",
+            "type": "integer"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineStage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started Ts"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "submission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Id"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "created_ts"
+        ],
+        "title": "IngestionJobOut",
+        "type": "object"
+      },
+      "JobStatus": {
+        "enum": [
+          "queued",
+          "running",
+          "complete",
+          "failed",
+          "quarantined"
+        ],
+        "title": "JobStatus",
+        "type": "string"
+      },
+      "LedgerEntryOut": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "entry_hash": {
+            "title": "Entry Hash",
+            "type": "string"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          },
+          "payload_hash": {
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "prev_hash": {
+            "title": "Prev Hash",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1.0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "entry_hash",
+          "prev_hash",
+          "timestamp",
+          "actor",
+          "action",
+          "payload_hash"
+        ],
+        "title": "LedgerEntryOut",
+        "type": "object"
+      },
+      "MappingApprovalIn": {
+        "additionalProperties": false,
+        "description": "`POST /submissions/{id}/mapping/approve`. Ledgered.\n\n`column_map` accepts two shapes, because a flat one cannot express a real\ncase. Flat (`{source: target}`) applies one mapping across the whole\nsubmission. Per-file (`{filename: {source: target}}`) exists for a submission\nwhose alert export and case export both carry a `notes` column, where the\nalert's free-text rule description is not the same fact as the case's\ninvestigation note \u2014 flattening those would have to pick one and the other\nfile would load with the field silently missing.\n\nThe service accepts both and stores the flat form per-file too, so the read\nside never has two shapes to reason about.",
+        "properties": {
+          "column_map": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              ]
+            },
+            "title": "Column Map",
+            "type": "object"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "severity_map": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Severity Map",
+            "type": "object"
+          },
+          "status_map": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Status Map",
+            "type": "object"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "MappingApprovalIn",
+        "type": "object"
+      },
+      "MappingApprovalOut": {
+        "additionalProperties": false,
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "approved_at": {
+            "title": "Approved At",
+            "type": "string"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who approved it, as recorded in the ledger",
+            "title": "Approved By"
+          },
+          "ledger_entry_hash": {
+            "title": "Ledger Entry Hash",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "profile_id",
+          "approved",
+          "ledger_entry_hash",
+          "approved_at"
+        ],
+        "title": "MappingApprovalOut",
+        "type": "object"
+      },
+      "MappingOut": {
+        "additionalProperties": false,
+        "description": "`GET /submissions/{id}/mapping`.",
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "column_map": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Column Map",
+            "type": "object"
+          },
+          "detected_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detected Profile"
+          },
+          "profile_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Version"
+          },
+          "severity_map": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Severity Map",
+            "type": "object"
+          },
+          "status_map": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Status Map",
+            "type": "object"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/MappingSuggestionOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "unmapped_columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unmapped Columns",
+            "type": "array"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "submission_id",
+          "approved"
+        ],
+        "title": "MappingOut",
+        "type": "object"
+      },
+      "MappingSuggestionOut": {
+        "additionalProperties": false,
+        "description": "One fuzzy-mapping suggestion. A human approves every mapping.",
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "sample_values": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sample Values",
+            "type": "array"
+          },
+          "source_column": {
+            "title": "Source Column",
+            "type": "string"
+          },
+          "suggested_target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Target"
+          }
+        },
+        "required": [
+          "source_column",
+          "suggested_target",
+          "confidence"
+        ],
+        "title": "MappingSuggestionOut",
+        "type": "object"
+      },
+      "NotImplementedResponse": {
+        "additionalProperties": false,
+        "description": "Body returned by a route whose backing service is not built yet.\n\nThese routes are registered rather than omitted so that the OpenAPI document\nis the complete v1 surface: the frontend can be written against the whole API\nfrom day one and build only the parts that answer. The alternative \u2014\npublishing only the built half \u2014 means the contract changes under the\nfrontend halfway through the project, which is the failure mode a contract\nfreeze exists to prevent.\n\n`service` names what is missing and `phase` names when it lands, so nobody has\nto guess whether a 503 is a bug or a scheduled gap.",
+        "properties": {
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "phase": {
+            "description": "Plan phase that delivers it",
+            "title": "Phase",
+            "type": "string"
+          },
+          "reason": {
+            "default": "This endpoint is part of the frozen v1 contract but its backing ",
+            "title": "Reason",
+            "type": "string"
+          },
+          "service": {
+            "description": "Service module not yet written",
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "default": 503,
+            "title": "Status",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "endpoint",
+          "service",
+          "phase"
+        ],
+        "title": "NotImplementedResponse",
+        "type": "object"
+      },
+      "PackStageIn": {
+        "additionalProperties": false,
+        "properties": {
+          "pack_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Id"
+          },
+          "signed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed By"
+          },
+          "source_path": {
+            "title": "Source Path",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_path",
+          "version"
+        ],
+        "title": "PackStageIn",
+        "type": "object"
+      },
+      "Page_EntityListItem_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EntityListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[EntityListItem]",
+        "type": "object"
+      },
+      "Page_IngestionJobOut_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngestionJobOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[IngestionJobOut]",
+        "type": "object"
+      },
+      "Page_LedgerEntryOut_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntryOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[LedgerEntryOut]",
+        "type": "object"
+      },
+      "Page_QuarantineRowOut_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuarantineRowOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[QuarantineRowOut]",
+        "type": "object"
+      },
+      "Page_RunOut_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[RunOut]",
+        "type": "object"
+      },
+      "Page_SubmissionOut_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[SubmissionOut]",
+        "type": "object"
+      },
+      "PipelineStage": {
+        "description": "The ten ingestion stages (plan \u00a74). Rejecting rows are never dropped.",
+        "enum": [
+          "receive",
+          "verify",
+          "detect",
+          "map",
+          "normalise",
+          "validate",
+          "quarantine",
+          "pseudonymise",
+          "load",
+          "ledger"
+        ],
+        "title": "PipelineStage",
+        "type": "string"
+      },
+      "PolicyActivateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "title": "PolicyActivateIn",
+        "type": "object"
+      },
+      "PolicyActivateOut": {
+        "additionalProperties": false,
+        "properties": {
+          "activated": {
+            "title": "Activated",
+            "type": "boolean"
+          },
+          "ledger_entry_hash": {
+            "title": "Ledger Entry Hash",
+            "type": "string"
+          },
+          "previous_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Id"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "version",
+          "activated",
+          "ledger_entry_hash"
+        ],
+        "title": "PolicyActivateOut",
+        "type": "object"
+      },
+      "PolicyProfileOut": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "effective_from": {
+            "title": "Effective From",
+            "type": "string"
+          },
+          "previous_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Id"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "version",
+          "effective_from",
+          "content_hash",
+          "active"
+        ],
+        "title": "PolicyProfileOut",
+        "type": "object"
+      },
+      "QuarantineRowOut": {
+        "additionalProperties": false,
+        "properties": {
+          "created_ts": {
+            "title": "Created Ts",
+            "type": "string"
+          },
+          "failed_stage": {
+            "$ref": "#/components/schemas/PipelineStage"
+          },
+          "quarantine_id": {
+            "title": "Quarantine Id",
+            "type": "string"
+          },
+          "raw_payload": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Payload"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "source_row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Row"
+          },
+          "source_table": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Table"
+          }
+        },
+        "required": [
+          "quarantine_id",
+          "failed_stage",
+          "reason",
+          "created_ts"
+        ],
+        "title": "QuarantineRowOut",
+        "type": "object"
+      },
+      "QuarantineSummaryOut": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "sample_row_refs": {
+            "description": "Row references the examiner can request via /submissions/{id}",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sample Row Refs",
+            "type": "array"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/PipelineStage"
+          }
+        },
+        "required": [
+          "stage",
+          "reason",
+          "count"
+        ],
+        "title": "QuarantineSummaryOut",
+        "type": "object"
+      },
+      "RankInterval": {
+        "additionalProperties": false,
+        "description": "Point ranks imply false precision; intervals do not (plan \u00a76.3).",
+        "properties": {
+          "high": {
+            "minimum": 1.0,
+            "title": "High",
+            "type": "integer"
+          },
+          "low": {
+            "minimum": 1.0,
+            "title": "Low",
+            "type": "integer"
+          },
+          "method": {
+            "description": "Weight perturbation (Dirichlet draws) + bootstrap over peers",
+            "title": "Method",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rank",
+          "low",
+          "high",
+          "method"
+        ],
+        "title": "RankInterval",
+        "type": "object"
+      },
+      "ReviewPackGenerateIn": {
+        "additionalProperties": false,
+        "description": "`POST /review-packs`.",
+        "properties": {
+          "control_severity_strata": {
+            "items": {
+              "$ref": "#/components/schemas/Severity"
+            },
+            "title": "Control Severity Strata",
+            "type": "array"
+          },
+          "entity_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None means all entities in scope",
+            "title": "Entity Ids"
+          },
+          "max_per_analyst": {
+            "default": 3,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Per Analyst",
+            "type": "integer"
+          },
+          "max_per_cluster": {
+            "default": 3,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Per Cluster",
+            "type": "integer"
+          },
+          "n_control": {
+            "default": 10,
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "N Control",
+            "type": "integer"
+          },
+          "n_target": {
+            "default": 20,
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "N Target",
+            "type": "integer"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recorded on the pack so the sample is reproducible",
+            "title": "Seed"
+          }
+        },
+        "title": "ReviewPackGenerateIn",
+        "type": "object"
+      },
+      "RunOut": {
+        "additionalProperties": false,
+        "properties": {
+          "code_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Version"
+          },
+          "config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Hash"
+          },
+          "created_ts": {
+            "title": "Created Ts",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished Ts"
+          },
+          "input_manifest_hashes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Manifest Hashes",
+            "type": "array"
+          },
+          "n_findings": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "N Findings",
+            "type": "integer"
+          },
+          "output_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Hash"
+          },
+          "pack_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Version"
+          },
+          "policy_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Hash"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "started_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started Ts"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "created_ts",
+          "status"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "RunTriggerIn": {
+        "additionalProperties": false,
+        "properties": {
+          "entity_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Ids"
+          },
+          "indicators": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None means the full P0 set",
+            "title": "Indicators"
+          },
+          "pack_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Id"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "policy_profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Profile Id"
+          }
+        },
+        "title": "RunTriggerIn",
+        "type": "object"
+      },
+      "Severity": {
+        "enum": [
+          "CRITICAL",
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
+      "SizeTier": {
+        "enum": [
+          "small",
+          "medium",
+          "large"
+        ],
+        "title": "SizeTier",
+        "type": "string"
+      },
+      "SocModel": {
+        "enum": [
+          "in-house",
+          "MSSP",
+          "hybrid"
+        ],
+        "title": "SocModel",
+        "type": "string"
+      },
+      "SubmissionDetail": {
+        "additionalProperties": false,
+        "description": "`GET /submissions/{id}` \u2014 what arrived, and what it can support.\n\nBoth halves in one response because the two questions are never asked apart:\nan examiner looking at a submission is always also asking whether it is\nusable. Splitting them into two round trips invites the frontend to render\nthe record without the quality report, which is how a Tier-C export ends up\npresented as though it were a full one.",
+        "properties": {
+          "data_quality": {
+            "$ref": "#/components/schemas/DQReportOut"
+          },
+          "submission": {
+            "$ref": "#/components/schemas/SubmissionOut"
+          }
+        },
+        "required": [
+          "submission",
+          "data_quality"
+        ],
+        "title": "SubmissionDetail",
+        "type": "object"
+      },
+      "SubmissionOut": {
+        "additionalProperties": false,
+        "properties": {
+          "data_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "declared_kpis": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared Kpis"
+          },
+          "dq_score": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dq Score"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Name"
+          },
+          "manifest_hash": {
+            "title": "Manifest Hash",
+            "type": "string"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "received_ts": {
+            "title": "Received Ts",
+            "type": "string"
+          },
+          "row_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Row Counts",
+            "type": "object"
+          },
+          "schema_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Profile"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission_id",
+          "entity_id",
+          "period_start",
+          "period_end",
+          "received_ts",
+          "manifest_hash",
+          "version"
+        ],
+        "title": "SubmissionOut",
+        "type": "object"
+      },
+      "UploadAccepted": {
+        "additionalProperties": false,
+        "description": "`POST /ingest/upload` \u2014 the job is queued, not done.\n\nIngestion runs in the background under the DuckDB single-writer lock, so\nthis is an acknowledgement, not a result.",
+        "properties": {
+          "accepted_files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accepted Files",
+            "type": "array"
+          },
+          "detected_format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detected_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detected Profile"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "submission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Id"
+          },
+          "total_bytes": {
+            "minimum": 0.0,
+            "title": "Total Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "entity_id",
+          "status",
+          "total_bytes",
+          "message"
+        ],
+        "title": "UploadAccepted",
+        "type": "object"
+      },
+      "UploadFormat": {
+        "enum": [
+          "csv",
+          "tsv",
+          "json",
+          "ndjson",
+          "parquet",
+          "sqlite",
+          "sql_dump",
+          "xlsx"
+        ],
+        "title": "UploadFormat",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Verdict": {
+        "description": "Examiner verdict for calibration.",
+        "enum": [
+          "confirmed",
+          "benign",
+          "insufficient_information"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
+      "VerdictIn": {
+        "additionalProperties": false,
+        "description": "`POST /verdicts`. Ledgered.",
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "evidence_seen": {
+            "description": "Row IDs the examiner actually checked",
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Seen",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          }
+        },
+        "required": [
+          "pack_id",
+          "case_id",
+          "verdict"
+        ],
+        "title": "VerdictIn",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Supervisory Analytics Tool for SOC Assessment (SAT-SA) for NCIIPC.\n\nOutputs are **prioritised hypotheses with evidence**, never verdicts or\ncompliance grades. `Not assessable` is a first-class outcome, distinct from\n\"low risk\".\n\nFully offline: no cloud APIs, no CDN, no generative AI in the decision path.\n\n## Reading this contract\n\n`Not assessable` is a **value**, not an absence. Every score field is nullable\nand `null` means \"could not be assessed\" \u2014 never \"scored zero\". The frontend must\nnot coalesce `null` to `0`; a dimension with no data and a dimension with a\nmeasured score of zero are different claims.\n\n`POST /verdicts` records **a supervisor's own conclusion**, written by a human.\nNo Orion-derived payload in this API contains a verdict, a compliance grade, or a\npass/fail.\n\nRoutes marked `503` are part of this frozen contract but their backing service is\nnot written yet. The response body names the service and the phase that delivers\nit. They are listed rather than omitted so the surface does not change shape\nmid-project; `GET /api/v1` splits them into `live` and `pending`.",
+    "title": "Orion (SAT-SA) Core Backend",
+    "version": "2.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "description": "A machine-readable index of the surface.\n\nCheaper than fetching the whole OpenAPI document, and it answers the one\nquestion a client asks at startup: which of these can I actually call?\nRoutes whose service is not built are listed with their phase rather than\nomitted, so a client can tell \"not implemented yet\" from \"does not exist\".",
+        "operationId": "contract_api_v1_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Contract Api V1 Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The contract, as a list",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/benchmarks": {
+      "get": {
+        "description": "Peer distributions, never thresholds. A median and a MAD describe a population; they do not say what a population *should* look like, and nothing here is a target. With no period given, the most recent scoring run is used.",
+        "operationId": "benchmarks_api_v1_benchmarks_get",
+        "parameters": [
+          {
+            "description": "egi, nsi, dts or sap",
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "default": "egi",
+              "description": "egi, nsi, dts or sap",
+              "title": "Metric",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Entity to exclude, so it is not compared against itself",
+            "in": "query",
+            "name": "exclude",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Entity to exclude, so it is not compared against itself",
+              "title": "Exclude"
+            }
+          },
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BenchmarkOut"
+                  },
+                  "title": "Response Benchmarks Api V1 Benchmarks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cohort baselines for the executive view",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/dimensions": {
+      "get": {
+        "description": "Ordered, and the order is the reporting order, not alphabetical. The \u00a76.1 weights behind these names are on `GET /policy-profiles/active` under `dimension_weights`; read the weight from there rather than assuming equal contribution, because the dimension scores behind a SAP are not summed evenly.",
+        "operationId": "dimensions_api_v1_dimensions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Dimensions Api V1 Dimensions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The eight capability dimensions",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/entities": {
+      "get": {
+        "description": "Entities with no scoring data are included with null scores and the `not_assessable` tier. They are not omitted: the executive view has to be able to distinguish *registered, nothing submitted* from *submitted, nothing found*, and a list that only ever shows scored entities cannot.",
+        "operationId": "list_entities_api_v1_entities_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_EntityListItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Every registered entity with its supervisory scores",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/v1/entities/{entity_id}/assessability": {
+      "get": {
+        "description": "This is the route that answers 'why is this number missing'. It resolves the period from the entity's most recent submission; pass `period` to gate against a different window.",
+        "operationId": "entity_assessability_api_v1_entities__entity_id__assessability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessabilityReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such entity"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "What can and cannot be assessed for this entity, and why",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/v1/entities/{entity_id}/summary": {
+      "get": {
+        "description": "The drill-down behind a row of `GET /entities`, and it must agree with that row: both read `overall_assessability` off the persisted score, so the list and the scorecard cannot state different assessability for the same entity.\n\nTwo fields answer different questions and are read together.\n`overall_assessability` is about coverage \u2014 whether Orion could examine the entity at all. `not_assessable` there means *nothing* was measurable, and is reserved for that: a well-run entity whose detectors find nothing is `assessable`, never `not_assessable`. `sap_tier` is about calibration \u2014 whether what was measured can be placed against cutpoints, which requires more of the dimension set than coverage alone. So `partial` alongside a withheld tier is the ordinary, correct reading today: measured in part, and not enough measured to prioritise.\n\n`caveats` states what Orion could not see. `run_id` names the run these figures came from, so a scorecard and the ledger can be tied to one another.\n\nEvery dimension with `assessability != assessable` has `score: null`. Render the absence; do not coerce it to 0.0.\n\nIf no run covers this entity for the period, the figures are computed on demand and `caveats` says so \u2014 they will not match a later run.",
+        "operationId": "entity_summary_api_v1_entities__entity_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitySummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such entity"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "The executive scorecard for one entity",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/v1/exports/brief": {
+      "post": {
+        "description": "503 until Phase 13. A brief covering several entities is the artefact that goes to NCIIPC, so it is generated once and rendered into whichever format is asked for \u2014 the formats must not be able to tell different stories.",
+        "operationId": "export_brief_api_v1_exports_brief_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fmt",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ExportFormat",
+              "default": "pdf"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Export a multi-entity brief in the requested format",
+        "tags": [
+          "exports"
+        ],
+        "x-orion": {
+          "phase": "Phase 13 (2.13)",
+          "service": "report_generator",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/exports/formats": {
+      "get": {
+        "description": "Live even though export is not implemented. The frontend's export menu is built against this list, so the answer to 'which formats' is a contract rather than a conversation \u2014 and it is all eight, not a subset chosen later.",
+        "operationId": "formats_api_v1_exports_formats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExportFormatInfo"
+                  },
+                  "title": "Response Formats Api V1 Exports Formats Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The export formats this deployment produces",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{entity_id}": {
+      "get": {
+        "description": "503 until Phase 13 (2.13). Formats come from `GET /exports/formats`, which is live now. The export must carry the same caveats and the same nulls as the screen: a dimension that could not be assessed exports as absent, not as zero.",
+        "operationId": "export_entity_api_v1_exports__entity_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Output format",
+            "in": "query",
+            "name": "fmt",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ExportFormat",
+              "default": "json",
+              "description": "Output format"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Export one entity's brief in the requested format",
+        "tags": [
+          "exports"
+        ],
+        "x-orion": {
+          "phase": "Phase 13 (2.13)",
+          "service": "report_generator",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/findings": {
+      "get": {
+        "description": "In the frozen v1 contract. Returns 503 until Phase 10 (2.10) lands the evidence service. The route is published now so the frontend can be written against the final shape; building a findings list from raw indicator signals and then rewriting it once finding cards exist would be the same list twice, with the second version contradicting the first.",
+        "operationId": "list_findings_api_v1_findings_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Surviving findings for an entity, with evidence",
+        "tags": [
+          "runs"
+        ],
+        "x-orion": {
+          "phase": "Phase 10 (2.10)",
+          "service": "evidence_service",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}": {
+      "get": {
+        "description": "In the frozen v1 contract. Returns 503 until Phase 10 (2.10) lands the evidence service. A card is not a score: it is one surviving indicator with the rows behind it, the counterfactual for the cutpoint that did not fire, and the reason it was not suppressed. The response shape is frozen in `app/schemas/finding.py` and will not be renegotiated once the service exists.",
+        "operationId": "get_finding_api_v1_findings__finding_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "One finding card",
+        "tags": [
+          "runs"
+        ],
+        "x-orion": {
+          "phase": "Phase 10 (2.10)",
+          "service": "evidence_service",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}/counterfactual": {
+      "get": {
+        "description": "A comparison against peers, not a verdict. States what the cohort's distribution is on this measure so a supervisor can see whether the entity is an outlier or simply in a differently-shaped population.",
+        "operationId": "get_counterfactual_api_v1_findings__finding_id__counterfactual_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "What the peer cohort looks like on the same measure",
+        "tags": [
+          "runs"
+        ],
+        "x-orion": {
+          "phase": "Phase 10 (2.10)",
+          "service": "evidence_service",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}/evidence": {
+      "get": {
+        "description": "Re-runs the stored `evidence_query` so the rows on screen are the rows the indicator saw, not a snapshot that can drift from them.",
+        "operationId": "get_finding_evidence_api_v1_findings__finding_id__evidence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "The rows behind a finding, re-derived",
+        "tags": [
+          "runs"
+        ],
+        "x-orion": {
+          "phase": "Phase 10 (2.10)",
+          "service": "evidence_service",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/indicators": {
+      "get": {
+        "description": "Every P0 indicator with its dimension, family and assessability requirement. Indicators with `status: stub` return no score by design; they are published rather than hidden because an entity scoring 0 on a negative-space dimension must be distinguishable from one where the negative-space detectors never ran.",
+        "operationId": "indicators_api_v1_indicators_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IndicatorCatalogueItem"
+                  },
+                  "title": "Response Indicators Api V1 Indicators Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The indicator catalogue \u2014 what is computed, and what is a stub",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/ingest/jobs": {
+      "get": {
+        "description": "One row per accepted upload. `quarantined` is a real outcome and not an error to hide: a submission that fails a security rule is parked with the reason recorded rather than dropped, so a missing file is always answerable.",
+        "operationId": "list_jobs_api_v1_ingest_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Id"
+            }
+          },
+          {
+            "description": "queued, running, complete, failed, quarantined",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "queued, running, complete, failed, quarantined",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_IngestionJobOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "The ingestion queue",
+        "tags": [
+          "ingestion"
+        ]
+      }
+    },
+    "/api/v1/ingest/jobs/{job_id}": {
+      "get": {
+        "description": "The 202 from `POST /ingest/upload` hands back a job id and the load is asynchronous, because staging a multi-gigabyte file must not hold the request open. Poll this until `job_status` is terminal.",
+        "operationId": "get_job_api_v1_ingest_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionJobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such job"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Poll one ingestion job",
+        "tags": [
+          "ingestion"
+        ]
+      }
+    },
+    "/api/v1/ingest/seed/{seed_id}": {
+      "post": {
+        "description": "In the frozen v1 contract. Returns 503 until the seed loader lands in Phase 19 \u2014 the SOCSim presets (OQ-8) are Dev 3's to decide, so the fixture set this route would load is not yet fixed.",
+        "operationId": "load_seed_api_v1_ingest_seed__seed_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "seed_id",
+            "required": true,
+            "schema": {
+              "title": "Seed Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Load a synthetic demonstration cohort (Phase 19)",
+        "tags": [
+          "ingestion"
+        ],
+        "x-orion": {
+          "phase": "Phase 19 (2.19)",
+          "service": "seed_loader",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/ingest/upload": {
+      "post": {
+        "description": "Returns **202 with a job id**, not a result. The load runs under the DuckDB single-writer lock; poll `GET /ingest/jobs/{job_id}` for the outcome. A `202` here means the files were staged and a submission was registered \u2014 nothing has been parsed, validated or loaded yet.",
+        "operationId": "upload_api_v1_ingest_upload_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_api_v1_ingest_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Upload rejected by the security checks"
+          },
+          "404": {
+            "description": "No such entity"
+          },
+          "413": {
+            "description": "Upload exceeds the configured size limit"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept a submission for an entity and queue it for loading",
+        "tags": [
+          "ingestion"
+        ]
+      }
+    },
+    "/api/v1/ledger": {
+      "get": {
+        "description": "Append-only. There is no write, edit or delete route for ledger entries and there will not be one; SQLite triggers on the table raise on UPDATE and DELETE as well, so the guarantee does not rest on the API alone.",
+        "operationId": "page_ledger_api_v1_ledger_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filter by action",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by action",
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_LedgerEntryOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit entries, newest first",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/ledger/verify": {
+      "get": {
+        "description": "Walks every entry, recomputing each hash from the previous one and the entry's own content. Returns **200 with `valid: false`** when the chain is broken, not a 4xx or 5xx: a broken chain is a finding about the data, and a client that treats a non-2xx as 'request failed' would not show it to the operator. `first_break_seq` and `break_reason` say where and why.",
+        "operationId": "verify_ledger_api_v1_ledger_verify_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Verify Ledger Api V1 Ledger Verify Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Verify the hash chain end to end",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/api/v1/packs/stage": {
+      "post": {
+        "description": "503 until Phase 14. Staging writes to `data/packs/staged/` and changes nothing that is live. A pack that has been staged but not shadow-run and not promoted is inert, which is the point: a pack version should be able to exist on disk without being reachable.",
+        "operationId": "stage_pack_api_v1_packs_stage_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackStageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Stage a pack version without activating it",
+        "tags": [
+          "packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 14 (2.14)",
+          "service": "pack_manager",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/packs/{pack_id}/promote": {
+      "post": {
+        "description": "503 until Phase 14. Promotion is refused without a shadow run that has been compared against the live pack \u2014 an unreviewed promotion is how a detector change silently alters every stored score's meaning.",
+        "operationId": "promote_pack_api_v1_packs__pack_id__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Make a shadow-run pack the live one. Ledgered.",
+        "tags": [
+          "packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 14 (2.14)",
+          "service": "pack_manager",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/packs/{pack_id}/rollback": {
+      "post": {
+        "description": "503 until Phase 14. **This is the first route to cut if time runs out** \u2014 but it is the one nobody should want to discover is missing, because rollback is what you need precisely when something has gone wrong.",
+        "operationId": "rollback_pack_api_v1_packs__pack_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Return to the previous live pack. Ledgered.",
+        "tags": [
+          "packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 14 (2.14)",
+          "service": "pack_manager",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/packs/{pack_id}/shadow": {
+      "post": {
+        "description": "503 until Phase 14. Shadow execution scores with the candidate pack while continuing to serve the live one, so a regression shows up as a diff between two result sets rather than as a changed dashboard nobody was watching.",
+        "operationId": "shadow_pack_api_v1_packs__pack_id__shadow_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Run a staged pack in shadow against the live one",
+        "tags": [
+          "packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 14 (2.14)",
+          "service": "pack_manager",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/policy-profiles": {
+      "get": {
+        "description": "A profile is the versioned definition of what counts as a gap: dimension weights, severity ramps, tier cutpoints, family caps. Scores are only reproducible against a named profile, which is why they are listed rather than buried.",
+        "operationId": "list_profiles_api_v1_policy_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyProfileOut"
+                  },
+                  "title": "Response List Profiles Api V1 Policy Profiles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Every known policy profile, newest first",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/policy-profiles/active": {
+      "get": {
+        "description": "The interpretation in force *now*, which is not necessarily the one a stored score was computed under \u2014 each run keeps its own `policy_hash`. When explaining a number from an earlier run, resolve the profile by that hash, not by calling this.\n\n`summary` carries the derivation itself (`dimension_weights`, `tier_cutpoints`, `fdr_q`, `dts_floor`, `min_measurable_share`, `ramps`) so the UI can show how a tier was reached instead of restating the conclusion.",
+        "operationId": "active_profile_api_v1_policy_profiles_active_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The profile new runs are computed under",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/policy-profiles/{profile_id}/activate": {
+      "post": {
+        "description": "Does not rewrite history. Scores already stored keep the policy hash they were computed under, so a stored figure is always interpretable against the profile that produced it. What changes is what the *next* run means, which is why `previous_id` comes back in the response.",
+        "operationId": "activate_profile_api_v1_policy_profiles__profile_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyActivateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyActivateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Role may not activate a policy profile"
+          },
+          "404": {
+            "description": "No such profile"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Make a profile the one new runs are computed under. Ledgered.",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/review-packs": {
+      "get": {
+        "description": "In the frozen contract; 503 until Phase 11. A pack is a *sample* chosen for human review \u2014 it must keep P(evidence | in pack) equal to P(evidence | population), which is why selection is stratified and randomised rather than ranked by score. A pack built by taking the highest-scoring entities would make every examiner conclusion about it unusable as evidence about the population.",
+        "operationId": "list_packs_api_v1_review_packs_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Review packs, newest first",
+        "tags": [
+          "review packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 11 (2.11)",
+          "service": "review_pack",
+          "status": "pending"
+        }
+      },
+      "post": {
+        "description": "In the frozen contract; 503 until Phase 11. Ledgered because the pack is the sampling decision, and a sample that cannot be shown to have been drawn without reference to the scores is the one artefact that would make every conclusion drawn from it contestable.",
+        "operationId": "create_pack_api_v1_review_packs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPackGenerateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Create a review pack. Ledgered.",
+        "tags": [
+          "review packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 11 (2.11)",
+          "service": "review_pack",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/review-packs/{pack_id}": {
+      "get": {
+        "description": "In the frozen contract; 503 until Phase 11. Carries the stratum, the selection probabilities (\u03c0), the controls and the hypotheses, so that `fair_selection` \u2014 P(evidence | in pack) = P(evidence | population) \u2014 is checkable from the response rather than asserted by the tool that built the pack.",
+        "operationId": "get_pack_api_v1_review_packs__pack_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "One pack with its stratum, controls and hypotheses",
+        "tags": [
+          "review packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 11 (2.11)",
+          "service": "review_pack",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/review-packs/{pack_id}/export": {
+      "get": {
+        "description": "503 until Phase 13 (2.13). The export is the artefact a supervisor leaves the building with, so it carries the same evidence rows and caveats as the screen rather than a summary of them.",
+        "operationId": "export_pack_api_v1_review_packs__pack_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "pdf, docx, md or json",
+            "in": "query",
+            "name": "fmt",
+            "required": false,
+            "schema": {
+              "default": "pdf",
+              "description": "pdf, docx, md or json",
+              "title": "Fmt",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Export a pack as a document",
+        "tags": [
+          "review packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 13 (2.13)",
+          "service": "report_generator",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/runs": {
+      "get": {
+        "description": "A run is the reproducibility unit. `policy_hash`, `code_version`, `seed` and `input_manifest_hashes` are what make a stored score interpretable later; `output_hash` is what proves two runs over the same inputs agreed. Any score shown in the UI should be traceable to one `run_id` here.",
+        "operationId": "list_runs_api_v1_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RunOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scoring runs, newest first",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "description": "Executes the full rules and scoring pipeline synchronously. Expect seconds, not milliseconds \u2014 it reads every entity's evidence and writes `finding`, `dimension_score` and `entity_score` under the DuckDB single-writer lock. One run at a time; a concurrent call waits for the lock rather than failing.\n\n`entity_ids` filters the **response**, not the cohort. Ranking is cohort-relative, so a subset ranked against itself would produce ranks incomparable with any other run's. The full cohort is scored and stored; the subset asked for is what comes back, and it is recorded in the ledger.\n\n`indicators` narrows the detector set. Every dimension is still scored, but one with no indicators behind it comes out not-assessable rather than zero \u2014 a targeted run must not look like a full one that found nothing in the dimensions it skipped.",
+        "operationId": "create_run_api_v1_runs_post",
+        "parameters": [
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTriggerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Run could not be attempted"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute a scoring run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "description": "Note what a run does not carry: a period. The `run` row records that a computation happened over a set of submission hashes, but the window it covered lives on the score rows it wrote and is derived from them. A run that wrote no scores therefore reports no period and no entity \u2014 that is a real state (it scored nothing), not a missing record.",
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such run"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One run, with its code, policy and pack identities",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/submissions": {
+      "get": {
+        "description": "Filter by `entity_id` to see one entity's submission history.",
+        "operationId": "list_submissions_api_v1_submissions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_SubmissionOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registered submissions, newest first",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/submissions/{submission_id}": {
+      "get": {
+        "description": "Returns the submission record and its DQ report together, because an examiner asking 'what arrived' is always also asking 'what can be done with it'. `interpretation` states plainly what the submission can and cannot support \u2014 it is never a quality verdict on the entity.",
+        "operationId": "get_submission_api_v1_submissions__submission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such submission"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One submission with its full data-quality decomposition",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/submissions/{submission_id}/dq": {
+      "get": {
+        "description": "Field-level completeness, validity and timeliness for one submission. The same figures appear inside `GET /submissions/{id}`; this route exists so a UI can load them on their own.\n\n`interpretation` is the part to show a submitter: it names what the quality figures mean for what can be scored, in words rather than as a number to be interpreted.",
+        "operationId": "get_dq_api_v1_submissions__submission_id__dq_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DQReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such submission"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data-quality report for one submission",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/submissions/{submission_id}/mapping": {
+      "get": {
+        "description": "Suggestions are advisory. Nothing in this response has been applied \u2014 a mapping takes effect only through `POST .../mapping/approve`, and the `approved` flag here says whether that has happened.",
+        "operationId": "get_mapping_api_v1_submissions__submission_id__mapping_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such submission"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "The resolved column mapping plus the suggestions for it",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/submissions/{submission_id}/mapping/approve": {
+      "post": {
+        "description": "The human gate in the ingestion pipeline. A file with no approved mapping does not load \u2014 the pipeline waits here rather than guessing, so an unapproved submission sitting at this route is the expected state, not a stuck job.",
+        "operationId": "approve_mapping_api_v1_submissions__submission_id__mapping_approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MappingApprovalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such submission"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve a column mapping. Ledgered and attributed.",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/submissions/{submission_id}/quarantine": {
+      "get": {
+        "description": "Rule 4 made visible: a rejected row is never dropped silently, and this is where a quarantined row is accounted for. An examiner reconciling 'you say 1.2 million alerts arrived' needs this to be able to say where they went.",
+        "operationId": "get_quarantine_api_v1_submissions__submission_id__quarantine_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by stage",
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PipelineStage"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by stage",
+              "title": "Stage"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_QuarantineRowOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such submission"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rows this submission lost, and at which stage",
+        "tags": [
+          "submissions"
+        ]
+      }
+    },
+    "/api/v1/trends": {
+      "get": {
+        "description": "503 until Phase 15 (2.15). A series is only meaningful alongside its assessability per period: an entity that stopped submitting data has a gap in its series, and that gap must not be drawn as a line through it.",
+        "operationId": "trends_api_v1_trends_get",
+        "parameters": [
+          {
+            "description": "Entity to trace",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Entity to trace",
+              "title": "Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "egi, nsi, dts or sap",
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "default": "egi",
+              "description": "egi, nsi, dts or sap",
+              "title": "Metric",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "A scored metric over successive periods",
+        "tags": [
+          "trends"
+        ],
+        "x-orion": {
+          "phase": "Phase 15 (2.15)",
+          "service": "trend_service",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/trends/change-points": {
+      "get": {
+        "description": "503 until Phase 15 (2.15). A change point marks where the shape of the values changed across the cohort. It is a prompt to look, not a finding: a genuine improvement produces one exactly as reliably as a deterioration, and the response must be able to say which direction it moved.",
+        "operationId": "change_points_api_v1_trends_change_points_get",
+        "parameters": [
+          {
+            "description": "egi, nsi, dts or sap",
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "default": "egi",
+              "description": "egi, nsi, dts or sap",
+              "title": "Metric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Periods where a metric's distribution shifted",
+        "tags": [
+          "trends"
+        ],
+        "x-orion": {
+          "phase": "Phase 15 (2.15)",
+          "service": "trend_service",
+          "status": "pending"
+        }
+      }
+    },
+    "/api/v1/verdicts": {
+      "get": {
+        "description": "In the frozen contract; 503 until Phase 11. Read-only by design \u2014 a recorded conclusion is never edited or withdrawn, only superseded by a later one. Each row is attributed to the supervisor who wrote it, and that attribution is part of the record rather than an audit detail.",
+        "operationId": "list_verdicts_api_v1_verdicts_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Recorded supervisor conclusions",
+        "tags": [
+          "review packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 11 (2.11)",
+          "service": "review_pack",
+          "status": "pending"
+        }
+      },
+      "post": {
+        "description": "The supervisor's judgement, entered by a person and attributed to them. Orion proposes hypotheses with evidence; it does not decide, and this route is where the human decision is recorded. 503 until Phase 11.",
+        "operationId": "record_verdict_api_v1_verdicts_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Actor"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerdictIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotImplementedResponse"
+                }
+              }
+            },
+            "description": "Not built yet"
+          }
+        },
+        "summary": "Record a supervisor's own conclusion about a finding",
+        "tags": [
+          "review packs"
+        ],
+        "x-orion": {
+          "phase": "Phase 11 (2.11)",
+          "service": "review_pack",
+          "status": "pending"
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Liveness probe. `offline: true` is a constant, not a claim.\n\nThe sovereignty check in `backend/scripts/sovereignty_check.py` is what\nturns that constant into evidence; nothing here can prove it at runtime,\nso this endpoint does not pretend to.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Registered entities, their supervisory scores, and what can and cannot be assessed about them.",
+      "name": "entities"
+    },
+    {
+      "description": "What an entity submitted, how good it is, the mapping a human approved, and the rows the pipeline refused.",
+      "name": "submissions"
+    },
+    {
+      "description": "Upload intake and the job queue. Uploads are accepted, not loaded: loading holds the single-writer lock and runs outside the request.",
+      "name": "ingestion"
+    },
+    {
+      "description": "Scoring runs and the indicator catalogue. The `/findings` routes are registered here and filled in by Phase 10.",
+      "name": "runs"
+    },
+    {
+      "description": "Stratified samples for human review, and the supervisor's own recorded conclusion about them.",
+      "name": "review packs"
+    },
+    {
+      "description": "Scored metrics over successive periods.",
+      "name": "trends"
+    },
+    {
+      "description": "Policy profiles \u2014 the versioned definition of what counts as a gap \u2014 and peer cohort baselines.",
+      "name": "policy"
+    },
+    {
+      "description": "Brief and pack export formats.",
+      "name": "exports"
+    },
+    {
+      "description": "Pack lifecycle: stage, shadow, promote, rollback.",
+      "name": "packs"
+    },
+    {
+      "description": "The append-only audit chain and its verification. Nothing in this API writes, edits or deletes a ledger entry.",
+      "name": "ledger"
+    },
+    {
+      "description": "Liveness and the contract itself.",
+      "name": "system"
+    }
+  ]
+}

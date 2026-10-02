@@ -55,6 +55,7 @@ from app.db.sqlite import get_connection, transaction
 from app.schemas.common import DataTier
 from app.schemas.ingestion import (
     DQReportOut,
+    IngestionJobOut,
     JobStatus,
     MappingOut,
     MappingSuggestionOut,
@@ -2026,6 +2027,77 @@ class IngestionService:
             data_tier=DataTier(counts["data_tier"]) if counts.get("data_tier") else None,
             version=int(row["version"]),
         )
+
+    def list_submissions(
+        self,
+        entity_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[SubmissionOut]:
+        """`GET /submissions` — newest first.
+
+        Filtered by entity when one is named, because the ingestion queue is
+        reviewed per entity: an operator resolving "which submissions is this
+        entity still missing" wants the gaps, not the whole registry.
+        """
+        clauses, params = [], []
+        if entity_id:
+            clauses.append("s.entity_id = ?")
+            params.append(entity_id)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params += [limit, offset]
+        rows = get_connection().execute(
+            f"SELECT s.submission_id FROM submission s {where} "
+            "ORDER BY s.received_ts DESC, s.submission_id DESC LIMIT ? OFFSET ?",
+            params,
+        ).fetchall()
+        # Re-read through `submission_out` rather than reshaping rows inline. One
+        # extra query per submission beats a second copy of the JSON-unpacking
+        # logic, which is where a divergence between the list and the detail view
+        # would come from.
+        return [self.submission_out(str(r["submission_id"])) for r in rows]
+
+    def get_job(self, job_id: str) -> IngestionJobOut:
+        """`GET /ingest/jobs/{id}` — poll a background load."""
+        row = get_connection().execute(
+            "SELECT * FROM ingestion_job WHERE job_id = ?", (job_id,)
+        ).fetchone()
+        if row is None:
+            raise IngestionError(f"No such ingestion job: {job_id}")
+        return IngestionJobOut(
+            job_id=str(row["job_id"]),
+            submission_id=row["submission_id"],
+            entity_id=row["entity_id"],
+            status=JobStatus(str(row["status"])),
+            stage=PipelineStage(str(row["stage"])) if row["stage"] else None,
+            created_ts=str(row["created_ts"]),
+            started_ts=row["started_ts"],
+            finished_ts=row["finished_ts"],
+            error=row["error"],
+            n_loaded=int(row["n_loaded"] or 0),
+            n_quarantined=int(row["n_quarantined"] or 0),
+        )
+
+    def list_jobs(
+        self, entity_id: str | None = None, status: str | None = None,
+        limit: int = 50, offset: int = 0,
+    ) -> list[IngestionJobOut]:
+        """`GET /ingest/jobs` — the ingestion queue."""
+        clauses, params = [], []
+        if entity_id:
+            clauses.append("entity_id = ?")
+            params.append(entity_id)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params += [limit, offset]
+        rows = get_connection().execute(
+            f"SELECT job_id FROM ingestion_job {where} "
+            "ORDER BY created_ts DESC, job_id DESC LIMIT ? OFFSET ?",
+            params,
+        ).fetchall()
+        return [self.get_job(str(r["job_id"])) for r in rows]
 
     def quarantine_rows(
         self, submission_id: str, stage: PipelineStage | None = None, limit: int = 200
