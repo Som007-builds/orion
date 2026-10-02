@@ -27,16 +27,16 @@ Owns `frontend/**`. Blocked on Dev 2's `/openapi.json` **for data only** — sca
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| 1.0 | **Claim your rows** | ⬜ | Read `docs/dev2-info-handover.md` §5, claim 1.1–1.9 here before starting |
-| 1.1 | Design system + app shell | ⬜ | `frontend/DESIGN.md`; **local fonts/icons only — no CDN** |
-| 1.2 | Routing + typed API client | ⬜ | Type against `app/schemas/**` (frozen fields) |
-| 1.3 | Executive view (EGI/NSI/DTS + 8-dim radar) | ⬜ | `entity.py` · unblocked |
-| 1.4 | Review-Pack Workbench | ⬜ | `review_pack.py` · unblocked |
-| 1.5 | Finding Card + evidence drawer | ⬜ | `finding.py` · unblocked |
-| 1.6 | Submissions + DQ + assessability | ⬜ | `ingestion.py`, `assessability.py` · unblocked |
-| 1.7 | Governance views (ledger, packs, policy) | ⬜ | `ledger.py` |
-| 1.8 | Supervisory brief export | ⬜ | ⛔ blocked by Dev 2 export endpoint |
-| 1.9 | Print / PDF styling | ⬜ | |
+| 1.0 | **Claim your rows** | ✅ | Claimed 1.1–1.9 per `docs/dev2-info-handover.md` §5 |
+| 1.1 | Design system + app shell | ✅ | Strict Cloudflare Technical Minimalism per `DESIGN.md`: `#ff5e1f` accent, 1–4px radius, air-gapped enclave shell, dynamic RBAC role switcher |
+| 1.2 | Routing + typed API client | ✅ | Type-safe client for `/api/v1` targeting frozen schemas with `X-Role` and `X-Actor` injection |
+| 1.3 | Executive view (EGI/NSI/DTS + 8-dim radar) | ✅ | Recharts 8-dimension peer radar with LOO cohort baseline, rank intervals `[low, high]`, SAP tier badges, CSE leaderboard |
+| 1.4 | Review-Pack Workbench | ✅ | Systematic PPS generator, inclusion probability π, Horvitz-Thompson prevalence estimate with 95% CI, examiner verdict dialog |
+| 1.5 | Finding Card + evidence drawer | ✅ | Robust effect size $z$, confidence breakdown, why flagged/unflagged, counterfactual sensitivity, re-runnable evidence query, cryptographic lineage |
+| 1.6 | Submissions + DQ + assessability | ✅ | 8-dimension $\times$ assessability matrix displaying missing fields, DQ score breakdown, quarantine counters |
+| 1.7 | Governance views (ledger, packs, policy) | ✅ | Cryptographic hash chain viewer (`prev_hash` ⟵ `entry_hash`), one-click chain verification, least-privilege RBAC gating |
+| 1.8 | Supervisory brief export | ✅ | Signed supervisory brief with Ed25519 provenance, ledger head hash, export to PDF/MD/JSON |
+| 1.9 | Print / PDF styling | ✅ | Dedicated print media styling with confidentiality and NCIIPC headers |
 
 **Dependencies on Dev 2:** `/openapi.json` frozen at Phase 12 (~hour 18). All response schemas already written — column "schema to type against" in the handover.
 
