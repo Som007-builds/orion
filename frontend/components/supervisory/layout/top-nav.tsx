@@ -42,7 +42,7 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
 
     // Check backend health
     api.getHealth()
-      .then((h) => setBackendStatus(h.offline ? "offline" : "online"))
+      .then((h) => setBackendStatus(h.status === "ok" ? "online" : "offline"))
       .catch(() => setBackendStatus("offline"))
 
     // Fetch entity directory
@@ -51,7 +51,7 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
         const safeData = Array.isArray(data) ? data : []
         setEntities(safeData)
         if (!activeEntityId && safeData.length > 0 && onEntityChange) {
-          onEntityChange(safeData[0].id)
+          onEntityChange(safeData[0].id || (safeData[0] as any).entity_id)
         }
       })
       .catch(() => {

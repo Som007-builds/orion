@@ -27,7 +27,7 @@ export default function DashboardPage() {
       const safeEntities = Array.isArray(entityList) ? entityList : []
       setEntities(safeEntities)
 
-      const targetId = activeEntityId || (safeEntities.length > 0 ? safeEntities[0].id : "")
+      const targetId = activeEntityId || (safeEntities.length > 0 ? (safeEntities[0].id || safeEntities[0].entity_id || "") : "")
       if (targetId) {
         if (!activeEntityId) setActiveEntityId(targetId)
         const entitySummary = await api.getEntitySummary(targetId)

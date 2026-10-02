@@ -92,16 +92,20 @@ export const api = {
     try {
       const res = await fetch(healthUrl)
       if (res.ok) return await res.json()
-      return { status: "offline", offline: true }
+      return { status: "offline", offline: false }
     } catch {
-      return { status: "offline", offline: true }
+      return { status: "offline", offline: false }
     }
   },
 
   async getEntities(): Promise<EntityListItem[]> {
-    const res = await request<PagedResponse<EntityListItem> | EntityListItem[]>("/entities")
-    if (Array.isArray(res)) return res
-    return Array.isArray(res?.items) ? res.items : []
+    const res = await request<PagedResponse<any> | any[]>("/entities")
+    const list = Array.isArray(res) ? res : (Array.isArray(res?.items) ? res.items : [])
+    return list.map((item: any) => ({
+      ...item,
+      id: item.entity_id || item.id,
+      entity_id: item.entity_id || item.id,
+    }))
   },
 
   async getEntitySummary(id: string): Promise<EntitySummaryOut> {

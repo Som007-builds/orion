@@ -54,6 +54,7 @@ export interface AssessabilitySummary {
 
 export interface EntityListItem {
   id: string
+  entity_id?: string
   name: string
   sector: string
   soc_model: 'in-house' | 'MSSP' | 'hybrid'
