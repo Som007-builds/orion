@@ -23,6 +23,7 @@ os.environ["ORION_DATA_DIR"] = str(_TMP / "data")
 os.environ["ORION_SQLITE_PATH"] = str(_TMP / "data" / "sqlite" / "orion.db")
 os.environ["ORION_PARQUET_DIR"] = str(_TMP / "data" / "parquet")
 os.environ["ORION_PACK_DIR"] = str(_TMP / "data" / "packs")
+os.environ["ORION_PUBKEY_DIR"] = str(_TMP / "data" / "keys")
 
 
 def cleanup() -> None:

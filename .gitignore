@@ -18,8 +18,9 @@ htmlcov/
 backend/data/sqlite/
 backend/data/parquet/
 backend/data/staging/
-backend/data/keys/*.key
+backend/data/keys/
 backend/data/packs/staged/
+backend/data/packs/exports/
 backend/dist/
 backend/wheelhouse/
 backend/*.db

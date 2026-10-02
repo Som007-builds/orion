@@ -14,7 +14,8 @@ make a pack usable as evidence about the population rather than a ranked list:
   on a supervisor's conclusion — extending the chain without a new break point
   (the shared suite DB carries test_api's deliberately forged break, so global
   validity is never asserted here);
-* the routes wired to the typed envelope, with `/export` still honestly 503.
+* the routes wired to the typed envelope, with `/export` live since Phase 13 —
+  the deep format/signing/ledger assertions live in `test_review_pack_export.py`.
 
 The fixture is hand-built in the tables the scorer writes (mirroring
 `ScoringService._persist_indicator_results`) plus `case_record` rows in the
@@ -60,6 +61,23 @@ RISK = {
 }
 W_ENT_RP = sum(RISK.values())  # 6.3
 
+#: DuckDB `case_record` rows behind the pack population. Extracted from the
+#: fixture body so the lake half can be rebuilt idempotently when a per-module
+#: temp-tree cleanup wipes the lake while the (locked) sqlite file survives.
+FIXTURE_LAKE_CASES = [
+    ("rp_ca1", "ent_rp", 5, "ana1", "HIGH"),
+    ("rp_ca2", "ent_rp", 6, "ana1", "HIGH"),
+    ("rp_ca3", "ent_rp", 7, "ana2", "MEDIUM"),
+    ("rp_ca4", "ent_rp", 8, "ana3", "LOW"),
+    ("rp_ca5", "ent_rp", 9, "ana2", "CRITICAL"),
+    ("rp_ca6", "ent_rp", 10, "ana4", "LOW"),
+    ("rp_cb1", "ent_cap_rp", 11, "anaA", "HIGH"),
+    ("rp_cb2", "ent_cap_rp", 12, "anaA", "HIGH"),
+    ("rp_fd1", "ent_flat_rp", 13, "anaF", "LOW"),
+    ("rp_fd2", "ent_flat_rp", 14, "anaF", "MEDIUM"),
+    ("rp_fd3", "ent_flat_rp", 15, "anaG", "HIGH"),
+]
+
 
 def tearDownModule() -> None:  # noqa: N802
     cleanup()
@@ -79,6 +97,13 @@ class ReviewPackFixture(unittest.TestCase):
         ).fetchone():
             # Subclasses re-run setUpClass against the shared suite DB; the
             # fixture is built once, in sqlite and the lake together.
+            #
+            # The sqlite half survives the per-module temp-tree cleanups (open
+            # handles keep the file deletable-ignored on Windows), but the
+            # DuckDB lake does not always survive them. Guarding only on sqlite
+            # would leave every later module with an empty lake it believes is
+            # populated, so the lake half is rebuilt idempotently here.
+            cls._ensure_lake()
             return
         conn.execute(
             "INSERT OR IGNORE INTO sector_ref (sector_ref, display_name) "
@@ -120,20 +145,31 @@ class ReviewPackFixture(unittest.TestCase):
                      ["rp_cb1", "rp_cb2"])   # 2.0 per case, capped scenario
         conn.commit()
 
+        cls._ensure_lake()
+
+    @classmethod
+    def _ensure_lake(cls) -> None:
+        """Idempotently ensure the `case_record` rows behind the pack population.
+
+        Called from every `setUpClass` so a module arriving after another
+        module's temp-tree cleanup (which can wipe the lake while the locked
+        sqlite file survives) still sees a populated lake.
+        """
         with get_duckdb().writer() as lake:
-            for case_id, entity, day, analyst, severity in (
-                ("rp_ca1", "ent_rp", 5, "ana1", "HIGH"),
-                ("rp_ca2", "ent_rp", 6, "ana1", "HIGH"),
-                ("rp_ca3", "ent_rp", 7, "ana2", "MEDIUM"),
-                ("rp_ca4", "ent_rp", 8, "ana3", "LOW"),
-                ("rp_ca5", "ent_rp", 9, "ana2", "CRITICAL"),
-                ("rp_ca6", "ent_rp", 10, "ana4", "LOW"),
-                ("rp_cb1", "ent_cap_rp", 11, "anaA", "HIGH"),
-                ("rp_cb2", "ent_cap_rp", 12, "anaA", "HIGH"),
-                ("rp_fd1", "ent_flat_rp", 13, "anaF", "LOW"),
-                ("rp_fd2", "ent_flat_rp", 14, "anaF", "MEDIUM"),
-                ("rp_fd3", "ent_flat_rp", 15, "anaG", "HIGH"),
-            ):
+            ids = [c[0] for c in FIXTURE_LAKE_CASES]
+            marks = ",".join("?" for _ in ids)
+            present = lake.execute(
+                f"SELECT COUNT(DISTINCT case_id) AS c FROM case_record "
+                f"WHERE case_id IN ({marks})",
+                ids,
+            ).fetchone()
+            if int(present[0]) >= len(ids):
+                return
+            for case_id in ids:
+                lake.execute(
+                    "DELETE FROM case_record WHERE case_id = ?", (case_id,)
+                )
+            for case_id, entity, day, analyst, severity in FIXTURE_LAKE_CASES:
                 lake.execute(
                     "INSERT INTO case_record (case_id, entity_id, created_at, "
                     "analyst_pseudo, severity_norm) VALUES (?, ?, ?, ?, ?)",
@@ -555,15 +591,30 @@ class PackEndpoints(ReviewPackFixture):
         self.assertEqual(400, resp.status_code)
         self.assertEqual("bad_request", resp.json()["error"])
 
-    def test_export_is_still_an_honest_503(self) -> None:
+    def test_export_is_live_with_a_signed_envelope(self) -> None:
         created = self._post_pack()
         resp = self.client.get(
-            f"/api/v1/review-packs/{created['pack_id']}/export"
+            f"/api/v1/review-packs/{created['pack_id']}/export",
+            headers={"X-Actor": "supervisor-export", "X-Role": "Supervisor"},
         )
-        self.assertEqual(503, resp.status_code)
+        self.assertEqual(200, resp.status_code, resp.text)
         body = resp.json()
-        self.assertEqual("report_generator", body["service"])
-        self.assertEqual("Phase 13 (2.13)", body["phase"])
+        for key in (
+            "pack_id",
+            "formats",
+            "content_hash",
+            "ledger_head_hash",
+            "signature",
+            "signed_by",
+            "export_paths",
+        ):
+            self.assertIn(key, body)
+        self.assertEqual(["pdf"], body["formats"])
+        self.assertTrue(body["signature"])
+        self.assertTrue(body["ledger_head_hash"])
+        # The artefact is actually written on the host; deep format/signing/
+        # ledger assertions live in tests/test_review_pack_export.py.
+        self.assertTrue(body["export_paths"])
 
     def test_verdicts_route_round_trip(self) -> None:
         created = self._post_pack()

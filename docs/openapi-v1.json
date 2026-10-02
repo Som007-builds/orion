@@ -3195,6 +3195,68 @@
         "title": "RankInterval",
         "type": "object"
       },
+      "ReviewPackExportOut": {
+        "additionalProperties": false,
+        "description": "`GET /review-packs/{id}/export`.",
+        "properties": {
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "export_paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Export Paths",
+            "type": "array"
+          },
+          "formats": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "ledger_head_hash": {
+            "title": "Ledger Head Hash",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ed25519; null only for unsigned test packs",
+            "title": "Signature"
+          },
+          "signed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed By"
+          }
+        },
+        "required": [
+          "pack_id",
+          "content_hash",
+          "ledger_head_hash"
+        ],
+        "title": "ReviewPackExportOut",
+        "type": "object"
+      },
       "ReviewPackGenerateIn": {
         "additionalProperties": false,
         "description": "`POST /review-packs`.",
@@ -6565,7 +6627,7 @@
     },
     "/api/v1/review-packs/{pack_id}/export": {
       "get": {
-        "description": "503 until Phase 13 (2.13). The export is the artefact a supervisor leaves the building with, so it carries the same evidence rows and caveats as the screen rather than a summary of them.",
+        "description": "The artefact a supervisor leaves the building with: the same evidence rows and caveats as the screen, not a summary of them. One canonical brief (pack + verdicts + re-executed evidence) is rendered to the requested format, written under the pack store, signed with the host's Ed25519 key (`data/keys/`, generated on first use) and ledgered with `pack_exported`. `fmt` is json, md or pdf in 2.13; docx shares this generator once its renderer lands. The response returns the host paths plus the signature, so the artefact can be verified later with `scripts/verify_export.py <file> <signature>`.",
         "operationId": "export_pack_api_v1_review_packs__pack_id__export_get",
         "parameters": [
           {
@@ -6578,13 +6640,13 @@
             }
           },
           {
-            "description": "pdf, docx, md or json",
+            "description": "json, md or pdf",
             "in": "query",
             "name": "fmt",
             "required": false,
             "schema": {
               "default": "pdf",
-              "description": "pdf, docx, md or json",
+              "description": "json, md or pdf",
               "title": "Fmt",
               "type": "string"
             }
@@ -6627,11 +6689,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/ReviewPackExportOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Unknown or not-yet-renderable format"
+          },
+          "404": {
+            "description": "No such pack"
           },
           "422": {
             "content": {
@@ -6642,27 +6710,12 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
-        "summary": "Export a pack as a document",
+        "summary": "Export a pack as a document, signed",
         "tags": [
           "review packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 13 (2.13)",
-          "service": "report_generator",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/runs": {

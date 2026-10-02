@@ -1,8 +1,10 @@
 """Review packs: selection for human review, and the supervisor's own record.
 
-Everything in this module is registered in the OpenAPI contract; the five pack
-and verdict routes are live since Phase 11 (2.11). `GET /review-packs/{id}/export`
-stays 503 until Phase 13 (2.13).
+Everything in this module is registered in the OpenAPI contract. The five pack
+and verdict routes are live since Phase 11 (2.11) and
+`GET /review-packs/{id}/export` has been live since Phase 13 (2.13): it renders
+one canonical brief to json/md/pdf, signs it with the host's Ed25519 key and
+ledgers it with `pack_exported`.
 
 One naming note that the route descriptions carry deliberately: `POST /verdicts`
 records **the supervisor's own conclusion**, written by a human. It is not Orion
@@ -12,28 +14,27 @@ verdict, a compliance grade or a pass/fail. The distinction is the product.
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.v1.deps import ActorDep, WriterDep
-from app.api.v1.errors import NotImplementedResponse, pending, pending_meta
 from app.schemas.common import Page
 from app.schemas.review_pack import (
+    ReviewPackExportOut,
     ReviewPackGenerateIn,
     ReviewPackListItem,
     ReviewPackOut,
     VerdictIn,
     VerdictOut,
 )
+from app.services.report_service import get_report_service
 from app.services.review_pack_service import (
     PackNotFound,
     get_review_pack_service,
 )
 
 router = APIRouter(tags=["review packs"])
-
-PENDING = {"model": NotImplementedResponse, "description": "Not built yet"}
 
 
 @router.get(
@@ -113,24 +114,33 @@ def get_pack(pack_id: str, _actor: ActorDep = None) -> ReviewPackOut:
 
 @router.get(
     "/review-packs/{pack_id}/export",
-    response_model=NotImplementedResponse,
-    summary="Export a pack as a document",
+    response_model=ReviewPackExportOut,
+    summary="Export a pack as a document, signed",
     description=(
-        "503 until Phase 13 (2.13). The export is the artefact a supervisor "
-        "leaves the building with, so it carries the same evidence rows and "
-        "caveats as the screen rather than a summary of them."
+        "The artefact a supervisor leaves the building with: the same evidence "
+        "rows and caveats as the screen, not a summary of them. One canonical "
+        "brief (pack + verdicts + re-executed evidence) is rendered to the "
+        "requested format, written under the pack store, signed with the host's "
+        "Ed25519 key (`data/keys/`, generated on first use) and ledgered with "
+        "`pack_exported`. `fmt` is json, md or pdf in 2.13; docx shares this "
+        "generator once its renderer lands. The response returns the host paths "
+        "plus the signature, so the artefact can be verified later with "
+        "`scripts/verify_export.py <file> <signature>`."
     ),
-    responses={503: PENDING},
-    openapi_extra=pending_meta("report_generator", "Phase 13 (2.13)"),
+    responses={
+        400: {"description": "Unknown or not-yet-renderable format"},
+        404: {"description": "No such pack"},
+    },
 )
 def export_pack(
     pack_id: str,
-    _actor: ActorDep = None,
-    fmt: Annotated[str, Query(description="pdf, docx, md or json")] = "pdf",
-) -> Any:
-    return pending(
-        "GET /api/v1/review-packs/{id}/export", "report_generator", "Phase 13 (2.13)"
-    )
+    writer: WriterDep,
+    fmt: Annotated[str, Query(description="json, md or pdf")] = "pdf",
+) -> ReviewPackExportOut:
+    try:
+        return get_report_service().export(pack_id, fmt, writer.name)
+    except PackNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
 
 
 @router.post(

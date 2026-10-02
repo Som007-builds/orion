@@ -1,0 +1,85 @@
+# Review pack {{ brief.pack_id }}
+
+Signed supervisory brief built by Orion from the stored pack, the per-item
+verdicts and the re-executed evidence rows — the **same evidence rows and
+caveats as the screen**, not a summary. This artefact is byte-reproducible (it
+carries no generation timestamp) and signed with the host's Ed25519 key; verify
+it with `scripts/verify_export.py <file> <signature>`.
+
+## Pack
+
+| field | value |
+| --- | --- |
+| pack_id | {{ brief.pack_id }} |
+| created_ts | {{ brief.created_ts }} |
+| created_by | {{ brief.created_by }} |
+| period | {{ brief.period_start }} .. {{ brief.period_end }} |
+| stratum | {{ brief.stratum or "" }} |
+| counts | {{ brief.n_selected }} selected of {{ brief.n_population }} population (target {{ brief.n_target }}, control {{ brief.n_control }}) |
+| seed | {{ brief.seed if brief.seed is not none else "" }} |
+| content_hash | {{ brief.content_hash or "" }} |
+| diversity_caps | {% if brief.diversity_caps_applied %}{% for k, v in brief.diversity_caps_applied.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %} |
+| signed_by_host | {{ brief.signed_by_host or "" }} |
+
+{% if brief.ht_estimate %}
+## Prevalence estimate (Horvitz-Thompson)
+
+* estimate: {{ "%.4f"|format(brief.ht_estimate.estimate) }}
+* 95% CI: [{{ "%.4f"|format(brief.ht_estimate.ci_low) }}, {{ "%.4f"|format(brief.ht_estimate.ci_high) }}]
+* method: {{ brief.ht_estimate.method }}
+* sampled / population: {{ brief.ht_estimate.n_sampled }} / {{ brief.ht_estimate.n_population }}
+{% if brief.ht_estimate.caveat %}
+* caveat: {{ brief.ht_estimate.caveat }}
+{% endif %}
+{% else %}
+## Prevalence estimate
+
+None recorded — this pack produced no HT estimate.
+{% endif %}
+
+## Items
+
+{% for item in brief["items"] %}
+### {{ item.case_id }} - {{ item.slice_type }}
+
+* entity: {{ item.entity_id }}
+* risk score: {{ item.case_risk_score }} | pi: {{ item.inclusion_prob }} | severity: {{ item.severity or "" }}
+* selected because: {{ item.selected_because }}
+{% if item.cluster_id %}* cluster: {{ item.cluster_id }}
+{% endif %}{% if item.analyst_pseudo %}* analyst: {{ item.analyst_pseudo }}
+{% endif %}{% if item.contributing_indicators %}* contributing indicators: {{ item.contributing_indicators|join(", ") }}
+{% endif %}{% if item.finding_ids %}* findings: {% for fid in item.finding_ids %}{{ fid }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% endif %}{% if item.verdict is not none %}* verdict: {{ item.verdict }}
+{% else %}* verdict: none recorded
+{% endif %}
+verification prompts:
+{% for p in item.verification_prompts %}
+  * [{{ p.prompt_type }}] {{ p.question }}{% if p.expected_evidence %} (expected evidence: {{ p.expected_evidence }}){% endif %}
+{% else %}
+  * (none)
+{% endfor %}
+evidence:
+{% for fid in item.finding_ids %}
+{% if fid in brief.evidence %}
+{% set ev = brief.evidence[fid] %}
+{% if ev.finding_not_found_at_export %}
+  * {{ fid }}: finding no longer resolves at export time (the screen shows the same gap)
+{% else %}
+  * {{ fid }}: {{ ev.row_count }} row(s), {{ ev.query_language }}
+{% if ev.stored_query %}    stored query: `{{ ev.stored_query }}`
+{% endif %}{% for row in ev.rows %}
+    - {{ row.row_id }} ({{ row.table_name }}): {% for k, v in row.fields.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}{% if row.redaction_note %} [{{ row.redaction_note }}]{% endif %}
+{% endfor %}{% endif %}
+{% else %}
+  * {{ fid }}: no evidence entry rendered at export time
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+## Caveats
+
+{% for c in brief.caveats %}
+* {{ c }}
+{% else %}
+* none recorded
+{% endfor %}
