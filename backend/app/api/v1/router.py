@@ -13,6 +13,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     entities,
     exports,
+    findings,
     ingest,
     ledger,
     packs,
@@ -31,6 +32,7 @@ api_router.include_router(entities.router)
 api_router.include_router(submissions.router)
 api_router.include_router(ingest.router)
 api_router.include_router(runs.router)
+api_router.include_router(findings.router)
 api_router.include_router(review_packs.router)
 api_router.include_router(trends.router)
 api_router.include_router(policy.router)

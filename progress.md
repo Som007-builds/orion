@@ -63,7 +63,7 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.8 | Indicators | P0 EG-01…EG-11 | ✅ | 6 indicators in `app/services/rules_engine.py`; 14-section smoke green. **3 bugs fixed that would have shipped** — see notes below |
 | 2.8 | Indicators | NS-01/02/04/05 **stubs** | ✅ | `rules_engine.ns_stub()`. `missing_fields` deliberately **empty** — an unwritten detector is not an absence of evidence. Drop real code in behind the same signature |
 | 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ✅ | `app/services/scoring_service.py`, 13-section smoke green. **4 more bugs caught** — see notes below |
-| 2.10 | Evidence | Finding cards + counterfactual | ⬜ | **next** |
+| 2.10 | Evidence | Finding cards + counterfactual | ✅ | findings materialised with scores: FDR-surviving, unsuppressed, signal > 0. Card answers why / why-not / counterfactual from stored rows; `note` keeps "measured but not comparable" honest; evidence re-runnable via `scripts/reproduce_finding.py`; +20 read-path tests; phase smoke 20/20 |
 | 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
 | 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ✅ | 45 ops / 42 paths frozen in `docs/openapi-v1.json` + no-diff test; 28 tests. **Auth gap: header-derived actor labels but does NOT verify — see below** |
 | 2.13 | Export | Supervisory brief, signed | ⬜ | ⛔ needs OQ-9 key custody |

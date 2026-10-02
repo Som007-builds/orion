@@ -170,6 +170,13 @@ class EntityScore:
     signals: list[Signal] = field(default_factory=list)
     family_scores: dict[str, float] = field(default_factory=dict)
     caveats: list[str] = field(default_factory=list)
+    # The full per-indicator results behind the signals. The signals are the
+    # distilled view after FDR and suppression; the cards, counterfactuals and
+    # "why was this not flagged" answers need the rich objects (evidence rows,
+    # baseline, confidence breakdown) that were already computed and would
+    # otherwise have to be recomputed after the fact — recomputation over the
+    # live evidence is how a card drifts from the run it claims to describe.
+    indicator_results: dict[str, IndicatorResult] = field(default_factory=dict)
 
     run_id: str | None = None
     overall_assessability: Assessability = Assessability.NOT_ASSESSABLE
@@ -243,6 +250,18 @@ def capped_noisy_or(terms: Sequence[tuple[float, float, float]]) -> float:
 
 
 # ---------------------------------------------------------------- the service --
+# One term of a confidence breakdown, when present. The breakdown may be None
+# (an early not-assessable result never builds one), and a missing term must
+# not become 0.0 — a 0.0 term would read as "this factor contributed nothing",
+# which is a measurement of a quantity that was never measured.
+def _term(
+    breakdown, key: str
+) -> float | None:
+    if breakdown is None:
+        return None
+    return getattr(breakdown, key, None)
+
+
 class ScoringService:
     """Plan §6 in one place."""
 
@@ -671,6 +690,7 @@ class ScoringService:
             dimensions=dimensions,
             signals=signals,
             family_scores=family_scores,
+            indicator_results=results,
         )
         score.overall_assessability = self._overall(dimensions)
         score.measurable_share = self._measurable_share(dimensions)
@@ -1169,14 +1189,14 @@ class ScoringService:
                 else report.overall
             )
             n_not_assessable = sum(1 for d in dimensions if d.score is None)
-            # Counted from the `finding` table for this run. That table exists from
-            # Phase 1 and stays empty until finding cards are materialised, so
-            # this reads 0 today — but it reads it from the persisted records
-            # rather than hard-coding zero, so the summary is correct the moment
-            # Phase 10 lands with no change here.
+            # Counted from the `finding` table for this run. Table exists from
+            # Phase 1; Phase 10 fills it, and a low-confidence lead is not a
+            # finding (plan §4.8.1) so only the non-lead rows count.
             n_findings = int(
                 conn.execute(
-                    "SELECT COUNT(*) FROM finding WHERE run_id = ? AND entity_id = ?",
+                    "SELECT COUNT(*) FROM finding "
+                    "WHERE run_id = ? AND entity_id = ? "
+                    "AND is_low_confidence_lead = 0",
                     (run["run_id"], entity_id),
                 ).fetchone()[0]
             )
@@ -1313,8 +1333,9 @@ class ScoringService:
         with transaction() as conn:
             conn.execute(
                 "INSERT INTO run (run_id, created_ts, started_ts, status, "
-                " input_manifest_hashes, config_hash, policy_hash, code_version, seed) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
+                " input_manifest_hashes, config_hash, policy_hash, "
+                " policy_profile_id, code_version, seed) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (
                     run_id,
                     datetime.now(timezone.utc).isoformat(),
@@ -1323,6 +1344,11 @@ class ScoringService:
                     manifest_blob,
                     hashlib.sha256(config_blob.encode("utf-8")).hexdigest(),
                     self.policy.content_hash,
+                    # Stored next to the hash because both belong to lineage: the
+                    # hash proves which document, the id says which profile — a
+                    # card needs to tell the examiner what to *ask for* and what
+                    # to *verify*, which are different things.
+                    self.policy.profile_id,
                     _code_version(),
                     self.seed,
                 ),
@@ -1388,6 +1414,7 @@ class ScoringService:
                         run_id,
                     ),
                 )
+            self._persist_indicator_results(conn, run_id, scores)
         total = len(scores)
         output_blob = json.dumps(
             {
@@ -1415,6 +1442,166 @@ class ScoringService:
             scores[0].period_start.isoformat() if scores else "-",
             scores[0].period_end.isoformat() if scores else "-",
         )
+
+    def _persist_indicator_results(
+        self, conn, run_id: str, scores: Sequence[EntityScore]
+    ) -> None:
+        """Write `indicator_status`, `finding` and `finding_evidence` for a run.
+
+        Same transaction as the scores, so a run is atomic: either the scores
+        and their findings both land, or neither does.
+
+        A finding is a signal that survived FDR, was not suppressed, and is
+        positive — exactly the rule `entity_summary` counts with. Everything
+        else an indicator said is persisted to `indicator_status` so "why was
+        this NOT flagged?" is answered from the record, never by a silent gap.
+        """
+        catalogue = {
+            c["indicator_id"]: c for c in self.rules.catalogue()
+        }
+        now = datetime.now(timezone.utc).isoformat()
+        # Deterministic, so a re-run of the same period under the same inputs
+        # writes the same finding ids rather than accumulating duplicates.
+        def finding_id(entity_id: str, indicator_id: str) -> str:
+            digest = hashlib.sha256(
+                f"{run_id}|{entity_id}|{indicator_id}".encode("utf-8")
+            ).hexdigest()
+            return f"F-{digest[:24]}"
+
+        for score in scores:
+            signal_by_id = {s.indicator_id: s for s in score.signals}
+            for indicator_id, result in sorted(score.indicator_results.items()):
+                spec_entry = catalogue.get(indicator_id, {})
+                is_stub = self.rules.is_stub(result)
+                signal = signal_by_id.get(indicator_id)
+                raised = (
+                    signal is not None
+                    and signal.suppressed_reason is None
+                    and signal.signal > 0.0
+                )
+                baseline = result.peer_baseline
+                self_baseline = result.self_baseline
+                conn.execute(
+                    "INSERT OR REPLACE INTO indicator_status "
+                    "(run_id, entity_id, indicator_id, period_start, period_end, "
+                    " value, value_units, effect_size, n, confidence, "
+                    " assessability, missing_fields, required_tier, raised, "
+                    " suppressed_reason, note, not_computable_reason, is_stub, "
+                    " created_ts) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        run_id,
+                        score.entity_id,
+                        indicator_id,
+                        result.period.start.isoformat(),
+                        result.period.end.isoformat(),
+                        result.value,
+                        result.value_units,
+                        result.effect_size,
+                        result.n,
+                        result.confidence,
+                        result.assessability.multiplier,
+                        json.dumps(result.missing_fields),
+                        spec_entry.get("min_tier"),
+                        1 if raised else 0,
+                        signal.suppressed_reason if signal else None,
+                        # Measured but no comparison formed (e.g. a single-valued
+                        # cohort): the engine's caveat must survive, or the card
+                        # would read "ran and stayed quiet" for a reading that was
+                        # never compared to anything.
+                        (result.notes if result.value is not None
+                         and result.effect_size is None else None),
+                        None if result.value is not None else result.notes,
+                        1 if is_stub else 0,
+                        now,
+                    ),
+                )
+                if not raised:
+                    continue
+                fid = finding_id(score.entity_id, indicator_id)
+                conn.execute(
+                    "INSERT INTO finding "
+                    "(finding_id, run_id, entity_id, indicator_id, "
+                    " period_start, period_end, value, value_units, "
+                    " peer_median, peer_mad, peer_percentile, n_peers, "
+                    " baseline_method, baseline_cohort, self_median, self_mad, "
+                    " self_periods, effect_size, n, confidence, "
+                    " conf_n_term, conf_assessability_term, conf_data_trust_term, "
+                    " evidence_query, benign_explanations, required_fields, "
+                    " missing_fields, assessability, family, primary_dimension, "
+                    " secondary_dimensions, source, is_low_confidence_lead, "
+                    " actor_type_inferred, notes, created_ts) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,"
+                    "        ?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        finding_id(score.entity_id, indicator_id),
+                        run_id,
+                        score.entity_id,
+                        indicator_id,
+                        result.period.start.isoformat(),
+                        result.period.end.isoformat(),
+                        result.value,
+                        result.value_units,
+                        baseline.median if baseline else None,
+                        baseline.mad if baseline else None,
+                        baseline.percentile if baseline else None,
+                        baseline.n_peers if baseline else None,
+                        baseline.method if baseline else None,
+                        baseline.cohort if baseline else None,
+                        self_baseline.median if self_baseline else None,
+                        self_baseline.mad if self_baseline else None,
+                        self_baseline.periods if self_baseline else None,
+                        result.effect_size,
+                        result.n,
+                        result.confidence,
+                        _term(result.confidence_breakdown, "n_term"),
+                        _term(result.confidence_breakdown, "assessability_term"),
+                        _term(result.confidence_breakdown, "data_trust_term"),
+                        result.evidence_query,
+                        json.dumps(list(result.benign_explanations)),
+                        json.dumps(list(result.required_fields)),
+                        json.dumps(list(result.missing_fields)),
+                        result.assessability.multiplier,
+                        result.family,
+                        result.primary_dimension.value
+                        if result.primary_dimension
+                        else None,
+                        json.dumps(
+                            [d.value for d in result.secondary_dimensions]
+                        ),
+                        result.source.value,
+                        1 if result.is_low_confidence_lead else 0,
+                        1 if result.actor_type_inferred else 0,
+                        result.notes,
+                        now,
+                    ),
+                )
+                table = self._evidence_table(result)
+                for ordinal, row_id in enumerate(result.evidence_row_ids):
+                    conn.execute(
+                        "INSERT OR IGNORE INTO finding_evidence "
+                        "(finding_id, table_name, row_id, ordinal) "
+                        "VALUES (?,?,?,?)",
+                        (fid, table, str(row_id), ordinal),
+                    )
+
+    @staticmethod
+    def _evidence_table(result: IndicatorResult) -> str:
+        """The table the finding's evidence row ids live in.
+
+        Taken from the stored query record, not parsed from SQL: the record was
+        stamped with the table when the query was assembled, and parsing SQL to
+        discover it would be a second opinion about what the query means.
+        Without a record the table is unknown, and an unknown table is reported
+        as such rather than guessed — a row id with the wrong table name is a
+        row id that cannot be found.
+        """
+        if not result.evidence_query:
+            return ""
+        try:
+            return json.loads(result.evidence_query).get("table") or ""
+        except (TypeError, ValueError):
+            return ""
 
     def _ledger_complete(
         self,

@@ -72,8 +72,16 @@ TAGS_METADATA = [
     {
         "name": "runs",
         "description": (
-            "Scoring runs and the indicator catalogue. The `/findings` routes are "
-            "registered here and filled in by Phase 10."
+            "Scoring runs and the indicator catalogue. A run is the reproducibility "
+            "unit: every score and finding below it is traceable to one run id."
+        ),
+    },
+    {
+        "name": "findings",
+        "description": (
+            "Finding cards and their evidence. A card is not a score and not a "
+            "verdict — it is one surviving indicator with the rows behind it, why "
+            "the other indicators stayed quiet, and what would clear it."
         ),
     },
     {

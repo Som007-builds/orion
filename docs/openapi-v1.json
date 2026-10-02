@@ -118,6 +118,166 @@
         "title": "AttentionTier",
         "type": "string"
       },
+      "Baseline": {
+        "additionalProperties": false,
+        "description": "Peer baseline (leave-one-out median/MAD, plan \u00a76.4).",
+        "properties": {
+          "cohort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cohort key: sector x size_tier x soc_model x soc_hours. MSSP-run SOCs are a separate cohort (plan \u00a74.7).",
+            "title": "Cohort"
+          },
+          "mad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mad"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "loo_median_mad",
+                  "eb_shrunk",
+                  "covariate_glm"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "n_peers": {
+            "minimum": 0.0,
+            "title": "N Peers",
+            "type": "integer"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentile"
+          }
+        },
+        "required": [
+          "n_peers"
+        ],
+        "title": "Baseline",
+        "type": "object"
+      },
+      "BaselineView": {
+        "additionalProperties": false,
+        "description": "Human-readable baseline for the card.",
+        "properties": {
+          "cohort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cohort"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "n_peers": {
+            "minimum": 0.0,
+            "title": "N Peers",
+            "type": "integer"
+          },
+          "peer_mad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Mad"
+          },
+          "peer_median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Median"
+          },
+          "peer_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Percentile"
+          },
+          "self_baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelfBaseline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "n_peers"
+        ],
+        "title": "BaselineView",
+        "type": "object"
+      },
       "BenchmarkOut": {
         "additionalProperties": false,
         "description": "`GET /benchmarks` \u2014 cohort baselines.",
@@ -224,6 +384,249 @@
           "period_end"
         ],
         "title": "Body_upload_api_v1_ingest_upload_post",
+        "type": "object"
+      },
+      "ConfidenceBreakdown": {
+        "additionalProperties": false,
+        "description": "`confidence = min(1, n/n_min) \u00d7 assessability \u00d7 data_trust` (plan \u00a76.2).\n\nKept decomposed because an examiner asking \"why is confidence 0.2?\" needs\nto know which of the three factors drove it down.",
+        "properties": {
+          "assessability_term": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Assessability Term",
+            "type": "number"
+          },
+          "data_trust_term": {
+            "description": "DTS",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Data Trust Term",
+            "type": "number"
+          },
+          "n_term": {
+            "description": "min(1, n / n_min)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "N Term",
+            "type": "number"
+          },
+          "total": {
+            "readOnly": true,
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "n_term",
+          "assessability_term",
+          "data_trust_term",
+          "total"
+        ],
+        "title": "ConfidenceBreakdown",
+        "type": "object"
+      },
+      "ConfidenceView": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceBreakdown"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which of n / assessability / data trust limited confidence most",
+            "title": "Explanation"
+          },
+          "total": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "title": "ConfidenceView",
+        "type": "object"
+      },
+      "CorroboratingSignal": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dimension"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect Size"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "indicator_name": {
+            "title": "Indicator Name",
+            "type": "string"
+          },
+          "relationship": {
+            "description": "e.g. 'same_family', 'same_dimension', 'independent_signal'",
+            "title": "Relationship",
+            "type": "string"
+          }
+        },
+        "required": [
+          "indicator_id",
+          "indicator_name",
+          "confidence",
+          "relationship"
+        ],
+        "title": "CorroboratingSignal",
+        "type": "object"
+      },
+      "Counterfactual": {
+        "additionalProperties": false,
+        "description": "What value or field change would clear or raise the finding.",
+        "properties": {
+          "current_effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Effect Size"
+          },
+          "current_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Value"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "required_fields_if_missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Fields If Missing",
+            "type": "array"
+          },
+          "would_clear_at_effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Would Clear At Effect Size"
+          },
+          "would_clear_at_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Would Clear At Value"
+          },
+          "would_raise_at_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Would Raise At Value"
+          }
+        },
+        "required": [
+          "explanation"
+        ],
+        "title": "Counterfactual",
+        "type": "object"
+      },
+      "CounterfactualOut": {
+        "additionalProperties": false,
+        "description": "`GET /findings/{id}/counterfactual`.",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/Baseline"
+          },
+          "counterfactual": {
+            "$ref": "#/components/schemas/Counterfactual"
+          },
+          "finding_id": {
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "peer_sensitivity": {
+            "description": "How the effect size moves as peer count varies",
+            "items": {
+              "type": "object"
+            },
+            "title": "Peer Sensitivity",
+            "type": "array"
+          }
+        },
+        "required": [
+          "finding_id",
+          "indicator_id",
+          "counterfactual",
+          "baseline"
+        ],
+        "title": "CounterfactualOut",
         "type": "object"
       },
       "CoverageType": {
@@ -786,6 +1189,93 @@
         "title": "EntitySummaryOut",
         "type": "object"
       },
+      "EvidenceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "query_language": {
+            "default": "sql",
+            "title": "Query Language",
+            "type": "string"
+          },
+          "row_count": {
+            "minimum": 0.0,
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "row_id_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Digest over the ordered row IDs, for reproducibility checks",
+            "title": "Row Id Hash"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "stored_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Re-runnable query; `reproduce_finding` executes this",
+            "title": "Stored Query"
+          }
+        },
+        "required": [
+          "row_count"
+        ],
+        "title": "EvidenceOut",
+        "type": "object"
+      },
+      "EvidenceRowOut": {
+        "additionalProperties": false,
+        "description": "One evidence row. Row IDs are explicit, never an opaque blob.",
+        "properties": {
+          "fields": {
+            "title": "Fields",
+            "type": "object"
+          },
+          "redaction_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when a field was redacted or pseudonymised",
+            "title": "Redaction Note"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "string"
+          },
+          "table_name": {
+            "title": "Table Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "table_name",
+          "row_id"
+        ],
+        "title": "EvidenceRowOut",
+        "type": "object"
+      },
       "ExportFormat": {
         "description": "The eight output formats. Frozen: this is the answer to the open question.",
         "enum": [
@@ -829,6 +1319,331 @@
         ],
         "title": "ExportFormatInfo",
         "type": "object"
+      },
+      "FindingCardOut": {
+        "additionalProperties": false,
+        "description": "`GET /findings/{id}` \u2014 the full card.",
+        "properties": {
+          "actor_type_inferred": {
+            "default": false,
+            "title": "Actor Type Inferred",
+            "type": "boolean"
+          },
+          "assessability": {
+            "$ref": "#/components/schemas/Assessability"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/BaselineView"
+          },
+          "benign_explanations": {
+            "description": "Candidate innocent explanations the examiner should check first",
+            "items": {
+              "type": "string"
+            },
+            "title": "Benign Explanations",
+            "type": "array"
+          },
+          "caveats": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Caveats",
+            "type": "array"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceView"
+          },
+          "corroborating_signals": {
+            "items": {
+              "$ref": "#/components/schemas/CorroboratingSignal"
+            },
+            "title": "Corroborating Signals",
+            "type": "array"
+          },
+          "counterfactual": {
+            "$ref": "#/components/schemas/Counterfactual"
+          },
+          "effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect Size"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Name"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "finding_id": {
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "indicator_name": {
+            "title": "Indicator Name",
+            "type": "string"
+          },
+          "is_low_confidence_lead": {
+            "default": false,
+            "title": "Is Low Confidence Lead",
+            "type": "boolean"
+          },
+          "lineage": {
+            "$ref": "#/components/schemas/LineageOut"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "n": {
+            "minimum": 0.0,
+            "title": "N",
+            "type": "integer"
+          },
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "primary_dimension": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dimension"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "secondary_dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/Dimension"
+            },
+            "title": "Secondary Dimensions",
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FindingSource"
+          },
+          "suggested_actions": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestedAction"
+            },
+            "title": "Suggested Actions",
+            "type": "array"
+          },
+          "summary": {
+            "description": "One line, hypothesis-framed. Never a regulatory finding.",
+            "title": "Summary",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_units": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Units"
+          },
+          "why_flagged": {
+            "$ref": "#/components/schemas/WhyFlagged"
+          },
+          "why_not_flagged": {
+            "$ref": "#/components/schemas/WhyNotFlagged"
+          }
+        },
+        "required": [
+          "finding_id",
+          "entity_id",
+          "period",
+          "indicator_id",
+          "indicator_name",
+          "summary",
+          "baseline",
+          "n",
+          "confidence",
+          "source",
+          "why_flagged",
+          "why_not_flagged",
+          "counterfactual",
+          "assessability",
+          "lineage"
+        ],
+        "title": "FindingCardOut",
+        "type": "object"
+      },
+      "FindingListItem": {
+        "additionalProperties": false,
+        "description": "Row in `GET /findings` \u2014 deliberately lighter than the card.",
+        "properties": {
+          "assessability": {
+            "$ref": "#/components/schemas/Assessability"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect Size"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Name"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "finding_id": {
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "indicator_name": {
+            "title": "Indicator Name",
+            "type": "string"
+          },
+          "is_low_confidence_lead": {
+            "default": false,
+            "title": "Is Low Confidence Lead",
+            "type": "boolean"
+          },
+          "period": {
+            "$ref": "#/components/schemas/PeriodOut"
+          },
+          "primary_dimension": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dimension"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sap_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttentionTier"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "finding_id",
+          "entity_id",
+          "indicator_id",
+          "indicator_name",
+          "period",
+          "confidence",
+          "assessability",
+          "summary"
+        ],
+        "title": "FindingListItem",
+        "type": "object"
+      },
+      "FindingSource": {
+        "description": "Which engine produced this result.",
+        "enum": [
+          "rules_engine",
+          "ml",
+          "negative_space"
+        ],
+        "title": "FindingSource",
+        "type": "string"
       },
       "HTTPValidationError": {
         "properties": {
@@ -928,6 +1743,109 @@
           "status"
         ],
         "title": "IndicatorCatalogueItem",
+        "type": "object"
+      },
+      "IndicatorNotComputable": {
+        "additionalProperties": false,
+        "properties": {
+          "assessability": {
+            "$ref": "#/components/schemas/Assessability"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "indicator_name": {
+            "title": "Indicator Name",
+            "type": "string"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "required_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Tier"
+          }
+        },
+        "required": [
+          "indicator_id",
+          "indicator_name",
+          "assessability",
+          "reason"
+        ],
+        "title": "IndicatorNotComputable",
+        "type": "object"
+      },
+      "IndicatorStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect Size"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "indicator_name": {
+            "title": "Indicator Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "raised": {
+            "title": "Raised",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "indicator_id",
+          "indicator_name",
+          "raised"
+        ],
+        "title": "IndicatorStatus",
         "type": "object"
       },
       "IngestionJobOut": {
@@ -1106,6 +2024,83 @@
           "payload_hash"
         ],
         "title": "LedgerEntryOut",
+        "type": "object"
+      },
+      "LineageOut": {
+        "additionalProperties": false,
+        "description": "Where this finding came from. Never fabricated \u2014 null means unknown.",
+        "properties": {
+          "code_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Version"
+          },
+          "pack_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Version"
+          },
+          "policy_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Hash"
+          },
+          "policy_profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Profile Id"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "submission_manifest_hashes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Submission Manifest Hashes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "title": "LineageOut",
         "type": "object"
       },
       "MappingApprovalIn": {
@@ -1513,6 +2508,46 @@
         "title": "Page[EntityListItem]",
         "type": "object"
       },
+      "Page_FindingListItem_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FindingListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[FindingListItem]",
+        "type": "object"
+      },
       "Page_IngestionJobOut_": {
         "additionalProperties": false,
         "properties": {
@@ -1711,6 +2746,27 @@
           "has_more"
         ],
         "title": "Page[SubmissionOut]",
+        "type": "object"
+      },
+      "PeriodOut": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "PeriodOut",
         "type": "object"
       },
       "PipelineStage": {
@@ -2305,6 +3361,44 @@
         "title": "RunTriggerIn",
         "type": "object"
       },
+      "SelfBaseline": {
+        "additionalProperties": false,
+        "description": "The entity's own history, for trend context.",
+        "properties": {
+          "mad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mad"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "periods": {
+            "minimum": 0.0,
+            "title": "Periods",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "periods"
+        ],
+        "title": "SelfBaseline",
+        "type": "object"
+      },
       "Severity": {
         "enum": [
           "CRITICAL",
@@ -2460,6 +3554,37 @@
           "version"
         ],
         "title": "SubmissionOut",
+        "type": "object"
+      },
+      "SuggestedAction": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "evidence_row_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Row Ids",
+            "type": "array"
+          },
+          "priority": {
+            "default": "normal",
+            "title": "Priority",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "rationale"
+        ],
+        "title": "SuggestedAction",
         "type": "object"
       },
       "UploadAccepted": {
@@ -2634,6 +3759,98 @@
           "verdict"
         ],
         "title": "VerdictIn",
+        "type": "object"
+      },
+      "WhyFlagged": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/BaselineView"
+          },
+          "effect_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect Size"
+          },
+          "indicator_id": {
+            "title": "Indicator Id",
+            "type": "string"
+          },
+          "indicator_name": {
+            "title": "Indicator Name",
+            "type": "string"
+          },
+          "statement": {
+            "description": "Hypothesis-framed sentence, never a verdict",
+            "title": "Statement",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_units": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Units"
+          }
+        },
+        "required": [
+          "indicator_id",
+          "indicator_name",
+          "value",
+          "baseline",
+          "statement"
+        ],
+        "title": "WhyFlagged",
+        "type": "object"
+      },
+      "WhyNotFlagged": {
+        "additionalProperties": false,
+        "description": "The view most systems omit, and the one examiners rely on.\n\nMust distinguish indicators that ran and stayed quiet from indicators that\ncould not run at all. \"We found nothing\" and \"we could not look\" are\ndifferent answers.",
+        "properties": {
+          "indicators_not_computable": {
+            "items": {
+              "$ref": "#/components/schemas/IndicatorNotComputable"
+            },
+            "title": "Indicators Not Computable",
+            "type": "array"
+          },
+          "indicators_run": {
+            "items": {
+              "$ref": "#/components/schemas/IndicatorStatus"
+            },
+            "title": "Indicators Run",
+            "type": "array"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "WhyNotFlagged",
         "type": "object"
       }
     }
@@ -3244,9 +4461,88 @@
     },
     "/api/v1/findings": {
       "get": {
-        "description": "In the frozen v1 contract. Returns 503 until Phase 10 (2.10) lands the evidence service. The route is published now so the frontend can be written against the final shape; building a findings list from raw indicator signals and then rewriting it once finding cards exist would be the same list twice, with the second version contradicting the first.",
+        "description": "Findings from completed scoring runs, ordered by effect size (most adverse first) then period. Low-confidence leads are excluded: a lead is a candidate that lacks the evidence or attribution to be presented as a finding, and this list only shows findings.\n\nFilter by `entity_id` for one entity, and/or give a period window; without a window every period with findings is included.",
         "operationId": "list_findings_api_v1_findings_get",
         "parameters": [
+          {
+            "description": "Limit to one entity",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Limit to one entity",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Inclusive start, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive start, YYYY-MM-DD",
+              "title": "Period Start"
+            }
+          },
+          {
+            "description": "Inclusive end, YYYY-MM-DD",
+            "in": "query",
+            "name": "period_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end, YYYY-MM-DD",
+              "title": "Period End"
+            }
+          },
           {
             "in": "header",
             "name": "X-Actor",
@@ -3285,7 +4581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/Page_FindingListItem_"
                 }
               }
             },
@@ -3300,32 +4596,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
-        "summary": "Surviving findings for an entity, with evidence",
+        "summary": "Surviving findings, most adverse first",
         "tags": [
-          "runs"
-        ],
-        "x-orion": {
-          "phase": "Phase 10 (2.10)",
-          "service": "evidence_service",
-          "status": "pending"
-        }
+          "findings"
+        ]
       }
     },
     "/api/v1/findings/{finding_id}": {
       "get": {
-        "description": "In the frozen v1 contract. Returns 503 until Phase 10 (2.10) lands the evidence service. A card is not a score: it is one surviving indicator with the rows behind it, the counterfactual for the cutpoint that did not fire, and the reason it was not suppressed. The response shape is frozen in `app/schemas/finding.py` and will not be renegotiated once the service exists.",
+        "description": "A card is not a score: it is one surviving indicator with the rows behind it, the other indicators that ran and stayed quiet (and the ones that could not run at all), what would clear the finding, and the lineage of the run that produced it. The shape is frozen in `app/schemas/finding.py`.",
         "operationId": "get_finding_api_v1_findings__finding_id__get",
         "parameters": [
           {
@@ -3375,11 +4656,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/FindingCardOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such finding"
           },
           "422": {
             "content": {
@@ -3390,32 +4674,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "One finding card",
         "tags": [
-          "runs"
-        ],
-        "x-orion": {
-          "phase": "Phase 10 (2.10)",
-          "service": "evidence_service",
-          "status": "pending"
-        }
+          "findings"
+        ]
       }
     },
     "/api/v1/findings/{finding_id}/counterfactual": {
       "get": {
-        "description": "A comparison against peers, not a verdict. States what the cohort's distribution is on this measure so a supervisor can see whether the entity is an outlier or simply in a differently-shaped population.",
+        "description": "The counterfactual is the value or field change that would clear the finding, computed from the run's own FDR bound and the stored peer baseline. `peer_sensitivity` is deliberately empty: peer-count effects need the peer values the baseline was built from, which are not stored, so it is omitted rather than approximated.",
         "operationId": "get_counterfactual_api_v1_findings__finding_id__counterfactual_get",
         "parameters": [
           {
@@ -3465,11 +4734,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/CounterfactualOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such finding"
           },
           "422": {
             "content": {
@@ -3480,32 +4752,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
-        "summary": "What the peer cohort looks like on the same measure",
+        "summary": "What would clear or raise this finding",
         "tags": [
-          "runs"
-        ],
-        "x-orion": {
-          "phase": "Phase 10 (2.10)",
-          "service": "evidence_service",
-          "status": "pending"
-        }
+          "findings"
+        ]
       }
     },
     "/api/v1/findings/{finding_id}/evidence": {
       "get": {
-        "description": "Re-runs the stored `evidence_query` so the rows on screen are the rows the indicator saw, not a snapshot that can drift from them.",
+        "description": "Re-runs the stored `evidence_query`, so the rows on screen are the rows the indicator saw at run time, not a snapshot that can drift from them. `row_id_hash` fingerprints the ordered row ids; `scripts/reproduce_finding.py` asserts the same ids against the rows persisted at materialisation.",
         "operationId": "get_finding_evidence_api_v1_findings__finding_id__evidence_get",
         "parameters": [
           {
@@ -3555,11 +4812,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/EvidenceOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such finding"
           },
           "422": {
             "content": {
@@ -3570,27 +4830,12 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "The rows behind a finding, re-derived",
         "tags": [
-          "runs"
-        ],
-        "x-orion": {
-          "phase": "Phase 10 (2.10)",
-          "service": "evidence_service",
-          "status": "pending"
-        }
+          "findings"
+        ]
       }
     },
     "/api/v1/indicators": {
@@ -5970,8 +7215,12 @@
       "name": "ingestion"
     },
     {
-      "description": "Scoring runs and the indicator catalogue. The `/findings` routes are registered here and filled in by Phase 10.",
+      "description": "Scoring runs and the indicator catalogue. A run is the reproducibility unit: every score and finding below it is traceable to one run id.",
       "name": "runs"
+    },
+    {
+      "description": "Finding cards and their evidence. A card is not a score and not a verdict \u2014 it is one surviving indicator with the rows behind it, why the other indicators stayed quiet, and what would clear it.",
+      "name": "findings"
     },
     {
       "description": "Stratified samples for human review, and the supervisor's own recorded conclusion about them.",

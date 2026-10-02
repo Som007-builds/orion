@@ -11,12 +11,11 @@ The cost is stated in the route description rather than hidden.
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.v1.deps import ActorDep, PeriodDep, WriterDep
-from app.api.v1.errors import NotImplementedResponse, pending, pending_meta
+from app.api.v1.deps import PeriodDep, WriterDep
 from app.schemas.catalogue import IndicatorCatalogueItem
 from app.schemas.common import Page
 from app.schemas.indicator import Dimension
@@ -162,77 +161,3 @@ def indicators() -> list[IndicatorCatalogueItem]:
 )
 def dimensions() -> list[str]:
     return [d.value for d in Dimension]
-
-
-@router.get(
-    "/findings",
-    response_model=NotImplementedResponse,
-    summary="Surviving findings for an entity, with evidence",
-    description=(
-        "In the frozen v1 contract. Returns 503 until Phase 10 (2.10) lands the "
-        "evidence service. The route is published now so the frontend can be "
-        "written against the final shape; building a findings list from raw "
-        "indicator signals and then rewriting it once finding cards exist would "
-        "be the same list twice, with the second version contradicting the first."
-    ),
-    responses={503: {"model": NotImplementedResponse, "description": "Not built yet"}},
-    openapi_extra=pending_meta("evidence_service", "Phase 10 (2.10)"),
-)
-def list_findings(actor: ActorDep) -> Any:
-    return pending("GET /api/v1/findings", "evidence_service", "Phase 10 (2.10)")
-
-
-@router.get(
-    "/findings/{finding_id}",
-    response_model=NotImplementedResponse,
-    summary="One finding card",
-    description=(
-        "In the frozen v1 contract. Returns 503 until Phase 10 (2.10) lands the "
-        "evidence service. A card is not a score: it is one surviving indicator "
-        "with the rows behind it, the counterfactual for the cutpoint that did not "
-        "fire, and the reason it was not suppressed. The response shape is "
-        "frozen in `app/schemas/finding.py` and will not be renegotiated once the "
-        "service exists."
-    ),
-    responses={503: {"model": NotImplementedResponse, "description": "Not built yet"}},
-    openapi_extra=pending_meta("evidence_service", "Phase 10 (2.10)"),
-)
-def get_finding(finding_id: str, actor: ActorDep) -> Any:
-    return pending("GET /api/v1/findings/{id}", "evidence_service", "Phase 10 (2.10)")
-
-
-@router.get(
-    "/findings/{finding_id}/evidence",
-    response_model=NotImplementedResponse,
-    summary="The rows behind a finding, re-derived",
-    description=(
-        "Re-runs the stored `evidence_query` so the rows on screen are the rows "
-        "the indicator saw, not a snapshot that can drift from them."
-    ),
-    responses={503: {"model": NotImplementedResponse, "description": "Not built yet"}},
-    openapi_extra=pending_meta("evidence_service", "Phase 10 (2.10)"),
-)
-def get_finding_evidence(finding_id: str, actor: ActorDep) -> Any:
-    return pending(
-        "GET /api/v1/findings/{id}/evidence", "evidence_service", "Phase 10 (2.10)"
-    )
-
-
-@router.get(
-    "/findings/{finding_id}/counterfactual",
-    response_model=NotImplementedResponse,
-    summary="What the peer cohort looks like on the same measure",
-    description=(
-        "A comparison against peers, not a verdict. States what the cohort's "
-        "distribution is on this measure so a supervisor can see whether the "
-        "entity is an outlier or simply in a differently-shaped population."
-    ),
-    responses={503: {"model": NotImplementedResponse, "description": "Not built yet"}},
-    openapi_extra=pending_meta("evidence_service", "Phase 10 (2.10)"),
-)
-def get_counterfactual(finding_id: str, actor: ActorDep) -> Any:
-    return pending(
-        "GET /api/v1/findings/{id}/counterfactual",
-        "evidence_service",
-        "Phase 10 (2.10)",
-    )

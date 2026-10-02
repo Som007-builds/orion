@@ -436,15 +436,26 @@ def _period_bounds(period_start: date, period_end: date) -> tuple[Any, Any]:
     return period_start, period_end + timedelta(days=1)
 
 
-def _query_record(engine: str, sql: str, params: Sequence[Any]) -> str:
+def _query_record(
+    engine: str, sql: str, params: Sequence[Any], table: str | None = None
+) -> str:
     """Serialise a re-runnable query as JSON.
 
     Stored with its parameters attached. A query stored without them cannot be
     re-run, and an evidence query that cannot be re-run is a claim rather than
     evidence.
+
+    `table` names the table the id column lives in, so the materialiser can
+    store `finding_evidence` rows without parsing SQL — a row id without its
+    source table is a row id that cannot be located.
     """
     return json.dumps(
-        {"engine": engine, "sql": " ".join(sql.split()), "params": list(params)},
+        {
+            "engine": engine,
+            "sql": " ".join(sql.split()),
+            "params": list(params),
+            "table": table,
+        },
         default=str,
         sort_keys=True,
     )
@@ -563,16 +574,14 @@ _EVIDENCE_SQL: dict[str, tuple[str, str]] = {
 _SLA_CASE = "WHEN 'CRITICAL' THEN 900 WHEN 'HIGH' THEN 3600 WHEN 'MEDIUM' THEN 14400 WHEN 'LOW' THEN 43200 "
 
 
-def _reproduce_evidence(record: str) -> list[str]:
-    """Re-execute a stored evidence record and return its row ids.
+def _run_evidence(
+    record: str,
+) -> tuple[list[dict[str, Any]], str]:
+    """Execute a stored evidence record and return its rows plus the id column.
 
-    Part of the rules engine rather than the evidence service because a stored
-    record is only trustworthy if the module that wrote it can read it back. If
-    this lives in a separate service, the two can disagree about what a record
-    means and nothing catches it until an examiner tries to reproduce a finding.
-
-    Ordered rows make the output comparable byte-for-byte across runs, which is
-    what the reproduction check asserts.
+    Shared by `_reproduce_evidence` (rows -> ids) and the evidence endpoint
+    (rows -> card). Keeping the execution in one place means the reproduction
+    check and the on-screen rows can never disagree about what a record means.
     """
     payload = json.loads(record)
     engine = payload["engine"]
@@ -605,7 +614,33 @@ def _reproduce_evidence(record: str) -> list[str]:
         ]
 
     id_column = "record_key" if engine == "sqlite" else "case_id"
+    return records, id_column
+
+
+def _reproduce_evidence(record: str) -> list[str]:
+    """Re-execute a stored evidence record and return its row ids.
+
+    Part of the rules engine rather than the evidence service because a stored
+    record is only trustworthy if the module that wrote it can read it back. If
+    this lives in a separate service, the two can disagree about what a record
+    means and nothing catches it until an examiner tries to reproduce a finding.
+
+    Ordered rows make the output comparable byte-for-byte across runs, which is
+    what the reproduction check asserts.
+    """
+    records, id_column = _run_evidence(record)
     return [str(r[id_column]) for r in records]
+
+
+def evidence_rows(record: str) -> tuple[list[dict[str, Any]], str]:
+    """Execute a stored evidence record; return (rows, id_column).
+
+    Public entry point for the evidence service. The reproduction guarantee is
+    that the module which wrote the record is the one that reads it back, so
+    the on-screen evidence rows arrive through the same execution path as the
+    reproduction check.
+    """
+    return _run_evidence(record)
 
 
 # ------------------------------------------------------------------- engine --
@@ -1240,10 +1275,14 @@ class RulesEngine:
         start, end = _period_bounds(period.start, period.end)
 
         if indicator_id == "EG-11":
-            return _query_record(engine, sql, [entity_id, entity_id])
+            return _query_record(
+                engine, sql, [entity_id, entity_id], table="record_version"
+            )
 
         if indicator_id == "EG-02":
-            record = _query_record(engine, sql, [entity_id, start, end])
+            record = _query_record(
+                engine, sql, [entity_id, start, end], table="case_record"
+            )
             # Declared in the record rather than baked into SQL, because the
             # thinness test reads note lengths from SQLite.
             payload = json.loads(record)
@@ -1271,6 +1310,7 @@ class RulesEngine:
                     end,
                     1.0 - float(self.policy.thresholds["sla_bunch_window_ratio"]),
                 ],
+                table="case_record",
             )
 
         if indicator_id == "EG-09":
@@ -1286,9 +1326,12 @@ class RulesEngine:
                     boundary.isoformat(sep=" "),
                     float(self.policy.thresholds["backlog_window_hours"]),
                 ],
+                table="case_record",
             )
 
-        return _query_record(engine, sql, [entity_id, start, end])
+        return _query_record(
+            engine, sql, [entity_id, start, end], table="case_record"
+        )
 
     # -- public API --------------------------------------------------------
     def run(

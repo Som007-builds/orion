@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS run (
     config_hash           TEXT,
     pack_version          TEXT,
     policy_hash           TEXT,
+    policy_profile_id     TEXT,
     code_version          TEXT,
     seed                  INTEGER,
     output_hash           TEXT,
@@ -221,6 +222,7 @@ CREATE TABLE IF NOT EXISTS finding (
                            CHECK (source IN ('rules_engine','ml','negative_space')),
     is_low_confidence_lead INTEGER NOT NULL DEFAULT 0,
     actor_type_inferred    INTEGER NOT NULL DEFAULT 0,
+    notes                  TEXT,
     created_ts             TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_finding_entity
@@ -237,6 +239,43 @@ CREATE TABLE IF NOT EXISTS finding_evidence (
     ordinal    INTEGER NOT NULL,
     PRIMARY KEY (finding_id, table_name, row_id)
 );
+
+-- ------------------------------------------------------- indicator_status --
+-- What every indicator said for an entity in a run, not just the ones that
+-- fired. "Why was this NOT flagged?" is answerable only if the quiet runs and
+-- the cannot-compute runs are persisted too, so the card never has to claim a
+-- silence it cannot evidence. `raised` mirrors the finding join: survived FDR,
+-- not suppressed, positive signal. `is_stub` marks the Dev 3 reference stubs so
+-- the read side can tell "detector not shipped" from "computed, no signal".
+-- `note` carries the engine's caveat when a value was measured but no peer
+-- comparison could be formed, so a card never reads "stayed quiet" for a
+-- reading that was never compared to anything.
+CREATE TABLE IF NOT EXISTS indicator_status (
+    run_id               TEXT NOT NULL REFERENCES run(run_id),
+    entity_id            TEXT NOT NULL REFERENCES entity(entity_id),
+    indicator_id         TEXT NOT NULL,
+    period_start         TEXT NOT NULL,
+    period_end           TEXT NOT NULL,
+    value                REAL,
+    value_units          TEXT,
+    effect_size          REAL,
+    n                    INTEGER NOT NULL DEFAULT 0,
+    confidence           REAL CHECK (confidence IS NULL OR
+                                     (confidence BETWEEN 0.0 AND 1.0)),
+    assessability        REAL CHECK (assessability IS NULL OR assessability IN
+                                     (0.0, 0.5, 1.0)),
+    missing_fields       TEXT,
+    required_tier        TEXT,
+    raised               INTEGER NOT NULL DEFAULT 0,
+    suppressed_reason    TEXT,
+    note                 TEXT,
+    not_computable_reason TEXT,
+    is_stub              INTEGER NOT NULL DEFAULT 0,
+    created_ts           TEXT NOT NULL,
+    PRIMARY KEY (run_id, entity_id, indicator_id)
+);
+CREATE INDEX IF NOT EXISTS ix_indicator_status_run
+    ON indicator_status(run_id, entity_id);
 
 -- --------------------------------------------------------- dimension_score --
 -- plan §6.5. Persisted per period so trends and change points have history.
@@ -539,6 +578,16 @@ def init_db() -> None:
     }
     if "assessability" not in score_columns:
         conn.execute("ALTER TABLE entity_score ADD COLUMN assessability TEXT")
+    run_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(run)")
+    }
+    if "policy_profile_id" not in run_columns:
+        conn.execute("ALTER TABLE run ADD COLUMN policy_profile_id TEXT")
+    finding_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(finding)")
+    }
+    if "notes" not in finding_columns:
+        conn.execute("ALTER TABLE finding ADD COLUMN notes TEXT")
     # Migration log in application order (ascending), so the sequence reads the
     # way it happened rather than the way it was coded.
     conn.execute(
@@ -556,6 +605,11 @@ def init_db() -> None:
     conn.execute(
         "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
         "VALUES (4, datetime('now'), 'entity_score.assessability added')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
+        "VALUES (5, datetime('now'), 'indicator_status, finding.notes, "
+        "run.policy_profile_id added')"
     )
 
 
