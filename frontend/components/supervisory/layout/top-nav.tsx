@@ -12,6 +12,7 @@ import {
   UserCheck,
   ChevronDown,
   Building2,
+  BookOpen,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -73,6 +74,7 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
     { href: "/submissions", label: "Submissions & DQ", visible: true },
     { href: "/governance/ledger", label: "Audit Ledger", visible: roleDef.canViewLedger },
     { href: "/reports", label: "Supervisory Brief", visible: roleDef.canExportBriefs },
+    { href: "/docs", label: "API Docs", visible: true },
   ]
 
   return (
@@ -205,6 +207,20 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
               </div>
             )}
           </div>
+
+          {/* API Docs link */}
+          <Link
+            href="/docs"
+            className={`h-7 px-2.5 flex items-center gap-1.5 border border-border rounded-md hover:bg-muted text-xs transition-colors ${
+              pathname === "/docs"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title="API Documentation (OpenAPI 3.1)"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Docs</span>
+          </Link>
 
           {/* Theme toggle */}
           {mounted && (
