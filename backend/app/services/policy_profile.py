@@ -371,10 +371,21 @@ class PolicyProfileService:
         )
 
     def activate(
-        self, profile_id: str, actor: str, notes: str | None = None
+        self,
+        profile_id: str,
+        actor: str,
+        notes: str | None = None,
+        profile: PolicyProfile | None = None,
     ) -> tuple[PolicyProfile, str, str | None]:
-        """Activate a profile. Ledgered. Returns (profile, ledger hash, previous id)."""
-        profile = self.get(profile_id)
+        """Activate a profile. Ledgered. Returns (profile, ledger hash, previous id).
+
+        `profile` may be supplied to activate a profile that is not (yet) on disk
+        under `policy_dir` — the pack lifecycle carries its policy inside the
+        bundle and adopts it on promote/rollback without the profile ever needing
+        to live in `data/policies/`. When omitted, resolution is exactly as
+        before: disk, then the available set.
+        """
+        profile = profile or self.get(profile_id)
         self.register(profile)
 
         current = get_connection().execute(

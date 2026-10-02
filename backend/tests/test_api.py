@@ -32,7 +32,6 @@ PENDING_BODIES = {
     "POST /api/v1/verdicts": {
         "pack_id": "p_x", "case_id": "c_x", "verdict": "confirmed",
     },
-    "POST /api/v1/packs/stage": {"source_path": "data/packs/x", "version": "1"},
     "POST /api/v1/review-packs": {"n_target": 3},
     "POST /api/v1/exports/brief": {},
 }

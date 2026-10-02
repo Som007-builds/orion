@@ -2489,6 +2489,125 @@
         "title": "NotImplementedResponse",
         "type": "object"
       },
+      "PackOut": {
+        "additionalProperties": false,
+        "properties": {
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "promoted_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted Ts"
+          },
+          "signature": {
+            "title": "Signature",
+            "type": "string"
+          },
+          "signed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed By"
+          },
+          "staged_ts": {
+            "title": "Staged Ts",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "version",
+          "content_hash",
+          "signature",
+          "status",
+          "staged_ts"
+        ],
+        "title": "PackOut",
+        "type": "object"
+      },
+      "PackShadowOut": {
+        "additionalProperties": false,
+        "properties": {
+          "diff_report": {
+            "title": "Diff Report",
+            "type": "object"
+          },
+          "ledger_entry_hash": {
+            "title": "Ledger Entry Hash",
+            "type": "string"
+          },
+          "n_findings_added": {
+            "minimum": 0.0,
+            "title": "N Findings Added",
+            "type": "integer"
+          },
+          "n_findings_changed": {
+            "minimum": 0.0,
+            "title": "N Findings Changed",
+            "type": "integer"
+          },
+          "n_findings_removed": {
+            "minimum": 0.0,
+            "title": "N Findings Removed",
+            "type": "integer"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "recommendation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'promote' or 'hold', with the reason stated",
+            "title": "Recommendation"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "status",
+          "n_findings_changed",
+          "n_findings_added",
+          "n_findings_removed",
+          "ledger_entry_hash"
+        ],
+        "title": "PackShadowOut",
+        "type": "object"
+      },
       "PackStageIn": {
         "additionalProperties": false,
         "properties": {
@@ -2528,6 +2647,41 @@
           "version"
         ],
         "title": "PackStageIn",
+        "type": "object"
+      },
+      "PackTransitionOut": {
+        "additionalProperties": false,
+        "properties": {
+          "ledger_entry_hash": {
+            "title": "Ledger Entry Hash",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "previous_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "status",
+          "ledger_entry_hash"
+        ],
+        "title": "PackTransitionOut",
         "type": "object"
       },
       "Page_EntityListItem_": {
@@ -5883,7 +6037,7 @@
     },
     "/api/v1/packs/stage": {
       "post": {
-        "description": "503 until Phase 14. Staging writes to `data/packs/staged/` and changes nothing that is live. A pack that has been staged but not shadow-run and not promoted is inert, which is the point: a pack version should be able to exist on disk without being reachable.",
+        "description": "Copy a pack bundle (manifest.json + policy/<profile_id>.yaml) into `data/packs/staged/<pack_id>/`, hash its contents deterministically, sign the hash with the host key, and ledger `pack_staged`. Staging changes nothing live: a staged pack is inert until a shadow run compares it with the live result set and an operator promotes it.",
         "operationId": "stage_pack_api_v1_packs_stage_post",
         "parameters": [
           {
@@ -5930,15 +6084,21 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/PackOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bundle validation or pack id/version mismatch"
+          },
+          "404": {
+            "description": "No such pack id or bundle"
           },
           "422": {
             "content": {
@@ -5949,32 +6109,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "Stage a pack version without activating it",
         "tags": [
           "packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 14 (2.14)",
-          "service": "pack_manager",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/packs/{pack_id}/promote": {
       "post": {
-        "description": "503 until Phase 14. Promotion is refused without a shadow run that has been compared against the live pack \u2014 an unreviewed promotion is how a detector change silently alters every stored score's meaning.",
+        "description": "Requires the pack to have been shadow-run. Copies the bundle from `staged/` to `active/`, adopts the bundled policy as the active policy (skipped when its content hash already matches the active one), demotes the previous live pack to `rolled_back`, and ledgeres `pack_promoted`. This is the only pack step that changes what scoring reads.",
         "operationId": "promote_pack_api_v1_packs__pack_id__promote_post",
         "parameters": [
           {
@@ -6024,11 +6169,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/PackTransitionOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Pack not shadow-run"
+          },
+          "404": {
+            "description": "No such pack"
           },
           "422": {
             "content": {
@@ -6039,32 +6190,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
-        "summary": "Make a shadow-run pack the live one. Ledgered.",
+        "summary": "Make a shadow-run pack the live pack",
         "tags": [
           "packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 14 (2.14)",
-          "service": "pack_manager",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/packs/{pack_id}/rollback": {
       "post": {
-        "description": "503 until Phase 14. **This is the first route to cut if time runs out** \u2014 but it is the one nobody should want to discover is missing, because rollback is what you need precisely when something has gone wrong.",
+        "description": "`pack_id` names the pack to restore: it must be the immediate predecessor of the current live pack (status `rolled_back`, promoted directly before the active one). One step per call \u2014 the statuses swap, the active bundle is replaced from `staged/`, the restored pack's policy is re-adopted, and `pack_rolled_back` is ledgered.",
         "operationId": "rollback_pack_api_v1_packs__pack_id__rollback_post",
         "parameters": [
           {
@@ -6114,11 +6250,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/PackTransitionOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Pack not superseded, or not the immediate predecessor"
+          },
+          "404": {
+            "description": "No such pack"
           },
           "422": {
             "content": {
@@ -6129,32 +6271,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
-        "summary": "Return to the previous live pack. Ledgered.",
+        "summary": "Restore the immediately previous live pack",
         "tags": [
           "packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 14 (2.14)",
-          "service": "pack_manager",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/packs/{pack_id}/shadow": {
       "post": {
-        "description": "503 until Phase 14. Shadow execution scores with the candidate pack while continuing to serve the live one, so a regression shows up as a diff between two result sets rather than as a changed dashboard nobody was watching.",
+        "description": "Execute the pack's policy over the same window the latest completed run covered, without persisting anything, and diff its raised findings against that run's stored findings. `n_findings_added/removed/changed` and the full `diff_report` are recorded on the pack row, with a mechanical recommendation (promote unless the candidate adds findings or intensifies existing ones). The run changes nothing live.",
         "operationId": "shadow_pack_api_v1_packs__pack_id__shadow_post",
         "parameters": [
           {
@@ -6204,11 +6331,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/PackShadowOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "Pack not staged, or no completed run to compare with"
+          },
+          "404": {
+            "description": "No such pack"
           },
           "422": {
             "content": {
@@ -6219,27 +6352,12 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
-        "summary": "Run a staged pack in shadow against the live one",
+        "summary": "Run the staged policy against the live result set without activating it",
         "tags": [
           "packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 14 (2.14)",
-          "service": "pack_manager",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/policy-profiles": {
