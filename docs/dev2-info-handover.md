@@ -507,3 +507,42 @@ Evidence tables you read: `alert_record`, `case_record`, `case_event`, `escalati
 ---
 
 **Questions on anything above — ping me. If a contract looks wrong, say so now.** Rewriting a frozen interface after integration costs all three of us; disagreeing before you write a line costs nothing.
+
+---
+
+## 11. What I need from you, Joy — in plain words
+
+The rest of this document is "what exists and what you code against". This section is the reverse: a short shopping list of the decisions and deliverables I need **from you** to finish my side. Order matters — the top block is asking for your *reply*, not your code.
+
+### 1. Quick replies (cheap for you, unblocks me)
+
+| # | Ask | My position / question |
+|---|---|---|
+| 1 | **OQ-10 — HMAC key rotation** | My position: the pseudonymisation key lives for the life of the deployment, no routine rotation — rotating means re-pseudonymising every historical row of the evidence lake. Say "agree" or tell me what you'd change. Blocks me + you. |
+| 2 | **NS function handles** | I pass `evidence` and `baseline` into your NS-01/02/04/05 functions. I propose: a read-only DuckDB connection + a `BaselineService` result object. Confirm or counter, so I can finalise the call sites. |
+| 3 | **`nlp_auditor` granularity** | Return one `IndicatorResult` per entity, or one per cluster with entity attribution? I lean per-entity (scoring aggregates per entity). Confirm. |
+| 4 | **OQ-8 — SOCSim presets** | Keep Alpha/Beta/Gamma as demo presets or drop them? Your call — tell me so the demo pipeline matches SOCSim. |
+
+### 2. Code I'm waiting on for the hour +12 integration point
+
+| # | Deliverable | Why it blocks me |
+|---|---|---|
+| 5 | **Replace my NS-01/02/04/05 stubs** in `rules_engine.py` with real detectors. Keep the signatures exactly, drop the `REFERENCE STUB` marker, and **never return a plausible placeholder number** — a fake statistic flows into EGI/NSI and silently corrupts scoring. If a detector genuinely can't run, decline honestly as `NOT_ASSESSABLE`. | My pipeline already calls these; right now they answer "we never looked", which is not a verdict. |
+| 6 | **NS-03 (temporal) and NS-06** — yours alone, I have no stubs for them, so they don't exist until you write the real bodies in `negative_space.py`. | Unblocks my 2.16 P1 indicator rows. |
+| 7 | **`pooled_loo_isolation_forest` + `attributions`** in `anomaly_engine.py`. | Attribution text lands on finding cards (§2.2). The card is frozen waiting on your model output shape. |
+
+### 3. Validation and numbers I'm not allowed to produce myself (independence rule)
+
+| # | Deliverable | Why it blocks me |
+|---|---|---|
+| 8 | **Truth files + injection scenarios**: `entity_truth.csv`, `case_truth.csv`, hard negatives, SOCSim + injection config. You author them; I must never see dose values while tuning, or recall numbers become self-fulfilling. Splits by entity, never by time. | My 2.18/2.19 evaluation suite and end-to-end runs. |
+| 9 | **Bench numbers** from `backend/scripts/bench/` with hardware stated (CPU, RAM, disk, Python version). | Until I have yours, every performance figure in my docs stays labelled "target (to be benchmarked)". |
+| 10 | **Model inventory table (§4.6)** filled in — your models, training data, purpose. | Goes into the supervisory brief at the demo cut line. |
+
+### 4. One decision that shapes my API
+
+| # | Ask | My position / question |
+|---|---|---|
+| 11 | **`actor_type` inference (§4.3)** — how the `resolve_actor` seam decides human / automation / unknown. | Your call, but it changes what my endpoints expose, so I need it before the OpenAPI freeze at hour +18. |
+
+**In one line: reply to items 1–4 this week, replace the stubs by integration, and give me truth files + bench numbers before I'm asked for a number I can't make up.** Everything else I can carry alone.
