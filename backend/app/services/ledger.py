@@ -45,6 +45,12 @@ class LedgerAction(str, Enum):
     SCORING_COMPLETED = "scoring_completed"
     RUN_FAILED = "run_failed"
     POLICY_ACTIVATED = "policy_activated"
+    # Additive Phase 11 extension: plan §8.2 ledgeres "pack changes" and the
+    # frozen review-pack POST is documented as "Ledgered" (the sampling decision
+    # must be auditable), but the Phase-3 enum predates the pack generator and
+    # had no action for creating a review pack. Additive only — no existing
+    # member changed. Frozen interface #5 owner: Developer 2 (Soham).
+    REVIEW_PACK_CREATED = "review_pack_created"
     PACK_STAGED = "pack_staged"
     PACK_SHADOW_RUN = "pack_shadow_run"
     PACK_PROMOTED = "pack_promoted"

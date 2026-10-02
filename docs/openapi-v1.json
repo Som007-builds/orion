@@ -1645,6 +1645,68 @@
         "title": "FindingSource",
         "type": "string"
       },
+      "HTEstimate": {
+        "additionalProperties": false,
+        "description": "Horvitz-Thompson prevalence estimate with a confidence interval.",
+        "properties": {
+          "caveat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Always present on stratified samples: the estimate is only as good as the severity stratification.",
+            "title": "Caveat"
+          },
+          "ci_high": {
+            "title": "Ci High",
+            "type": "number"
+          },
+          "ci_low": {
+            "title": "Ci Low",
+            "type": "number"
+          },
+          "confidence_level": {
+            "default": 0.95,
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Confidence Level",
+            "type": "number"
+          },
+          "estimate": {
+            "title": "Estimate",
+            "type": "number"
+          },
+          "method": {
+            "description": "Horvitz-Thompson with stratified variance",
+            "title": "Method",
+            "type": "string"
+          },
+          "n_population": {
+            "minimum": 0.0,
+            "title": "N Population",
+            "type": "integer"
+          },
+          "n_sampled": {
+            "minimum": 0.0,
+            "title": "N Sampled",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "estimate",
+          "ci_low",
+          "ci_high",
+          "n_sampled",
+          "n_population",
+          "method"
+        ],
+        "title": "HTEstimate",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2668,6 +2730,46 @@
         "title": "Page[QuarantineRowOut]",
         "type": "object"
       },
+      "Page_ReviewPackListItem_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewPackListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[ReviewPackListItem]",
+        "type": "object"
+      },
       "Page_RunOut_": {
         "additionalProperties": false,
         "properties": {
@@ -2746,6 +2848,46 @@
           "has_more"
         ],
         "title": "Page[SubmissionOut]",
+        "type": "object"
+      },
+      "Page_VerdictOut_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VerdictOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "Page[VerdictOut]",
         "type": "object"
       },
       "PeriodOut": {
@@ -3145,6 +3287,285 @@
         "title": "ReviewPackGenerateIn",
         "type": "object"
       },
+      "ReviewPackItemOut": {
+        "additionalProperties": false,
+        "properties": {
+          "analyst_pseudo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyst Pseudo"
+          },
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "case_risk_score": {
+            "minimum": 0.0,
+            "title": "Case Risk Score",
+            "type": "number"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "contributing_indicators": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Contributing Indicators",
+            "type": "array"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "finding_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
+          "inclusion_prob": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "\u03c0_i. Null only for deterministic-inclusion control items.",
+            "title": "Inclusion Prob"
+          },
+          "selected_because": {
+            "description": "Prose explaining why this case is in the pack",
+            "title": "Selected Because",
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slice_type": {
+            "$ref": "#/components/schemas/SliceType"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_prompts": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationPrompt"
+            },
+            "title": "Verification Prompts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "case_id",
+          "entity_id",
+          "slice_type",
+          "case_risk_score",
+          "selected_because"
+        ],
+        "title": "ReviewPackItemOut",
+        "type": "object"
+      },
+      "ReviewPackListItem": {
+        "additionalProperties": false,
+        "properties": {
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "created_ts": {
+            "title": "Created Ts",
+            "type": "string"
+          },
+          "ht_estimate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ht Estimate"
+          },
+          "n_selected": {
+            "minimum": 0.0,
+            "title": "N Selected",
+            "type": "integer"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "created_ts",
+          "created_by",
+          "period_start",
+          "period_end",
+          "n_selected"
+        ],
+        "title": "ReviewPackListItem",
+        "type": "object"
+      },
+      "ReviewPackOut": {
+        "additionalProperties": false,
+        "description": "`GET /review-packs/{id}`.",
+        "properties": {
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "created_ts": {
+            "title": "Created Ts",
+            "type": "string"
+          },
+          "diversity_caps_applied": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Diversity Caps Applied",
+            "type": "object"
+          },
+          "ht_estimate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HTEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewPackItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "n_control": {
+            "minimum": 0.0,
+            "title": "N Control",
+            "type": "integer"
+          },
+          "n_population": {
+            "minimum": 0.0,
+            "title": "N Population",
+            "type": "integer"
+          },
+          "n_selected": {
+            "minimum": 0.0,
+            "title": "N Selected",
+            "type": "integer"
+          },
+          "n_target": {
+            "minimum": 0.0,
+            "title": "N Target",
+            "type": "integer"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "stratum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stratum"
+          }
+        },
+        "required": [
+          "pack_id",
+          "created_ts",
+          "created_by",
+          "period_start",
+          "period_end",
+          "n_target",
+          "n_control",
+          "n_selected",
+          "n_population"
+        ],
+        "title": "ReviewPackOut",
+        "type": "object"
+      },
       "RunOut": {
         "additionalProperties": false,
         "properties": {
@@ -3416,6 +3837,14 @@
           "large"
         ],
         "title": "SizeTier",
+        "type": "string"
+      },
+      "SliceType": {
+        "enum": [
+          "targeted",
+          "control"
+        ],
+        "title": "SliceType",
         "type": "string"
       },
       "SocModel": {
@@ -3759,6 +4188,91 @@
           "verdict"
         ],
         "title": "VerdictIn",
+        "type": "object"
+      },
+      "VerdictOut": {
+        "additionalProperties": false,
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "examiner_pseudo": {
+            "title": "Examiner Pseudo",
+            "type": "string"
+          },
+          "ledger_entry_hash": {
+            "title": "Ledger Entry Hash",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "recorded_ts": {
+            "title": "Recorded Ts",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "verdict_id": {
+            "title": "Verdict Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict_id",
+          "pack_id",
+          "case_id",
+          "verdict",
+          "examiner_pseudo",
+          "recorded_ts",
+          "ledger_entry_hash"
+        ],
+        "title": "VerdictOut",
+        "type": "object"
+      },
+      "VerificationPrompt": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Evidence"
+          },
+          "prompt_type": {
+            "description": "e.g. 'check_escalation_record', 'check_human_reviewer'",
+            "title": "Prompt Type",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "prompt_type"
+        ],
+        "title": "VerificationPrompt",
         "type": "object"
       },
       "WhyFlagged": {
@@ -5807,9 +6321,32 @@
     },
     "/api/v1/review-packs": {
       "get": {
-        "description": "In the frozen contract; 503 until Phase 11. A pack is a *sample* chosen for human review \u2014 it must keep P(evidence | in pack) equal to P(evidence | population), which is why selection is stratified and randomised rather than ranked by score. A pack built by taking the highest-scoring entities would make every examiner conclusion about it unusable as evidence about the population.",
+        "description": "A pack is a *sample* chosen for human review \u2014 it must keep P(evidence | in pack) equal to P(evidence | population), which is why selection is stratified and randomised rather than ranked by score. A pack built by taking the highest-scoring entities would make every examiner conclusion about it unusable as evidence about the population. Each row carries the HT prevalence estimate its pack produced, so the shelf of packs is comparable at a glance.",
         "operationId": "list_packs_api_v1_review_packs_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
           {
             "in": "header",
             "name": "X-Actor",
@@ -5848,7 +6385,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/Page_ReviewPackListItem_"
                 }
               }
             },
@@ -5863,30 +6400,15 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "Review packs, newest first",
         "tags": [
           "review packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 11 (2.11)",
-          "service": "review_pack",
-          "status": "pending"
-        }
+        ]
       },
       "post": {
-        "description": "In the frozen contract; 503 until Phase 11. Ledgered because the pack is the sampling decision, and a sample that cannot be shown to have been drawn without reference to the scores is the one artefact that would make every conclusion drawn from it contestable.",
+        "description": "Ledgered because the pack is the sampling decision, and a sample that cannot be shown to have been drawn without reference to the scores is the one artefact that would make every conclusion drawn from it contestable. The request records the selection rule (targets, controls, strata, seed); the response carries every item with its inclusion probability \u03c0, its risk score, and prose saying why it was selected. Without a period the most recent completed scoring run's window is used, so a bare request cannot silently pick a different quarter than the frontend is showing.",
         "operationId": "create_pack_api_v1_review_packs_post",
         "parameters": [
           {
@@ -5937,11 +6459,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/ReviewPackOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "No population in the window, or an unknown entity"
           },
           "422": {
             "content": {
@@ -5952,32 +6477,17 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "Create a review pack. Ledgered.",
         "tags": [
           "review packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 11 (2.11)",
-          "service": "review_pack",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/review-packs/{pack_id}": {
       "get": {
-        "description": "In the frozen contract; 503 until Phase 11. Carries the stratum, the selection probabilities (\u03c0), the controls and the hypotheses, so that `fair_selection` \u2014 P(evidence | in pack) = P(evidence | population) \u2014 is checkable from the response rather than asserted by the tool that built the pack.",
+        "description": "Carries the stratum, the selection probabilities (\u03c0), the controls and the hypotheses, so that `fair_selection` \u2014 P(evidence | in pack) = P(evidence | population) \u2014 is checkable from the response rather than asserted by the tool that built the pack. Each control item states its stratum and draw counts; each targeted item states its rank by risk and why the risk score is what it is.",
         "operationId": "get_pack_api_v1_review_packs__pack_id__get",
         "parameters": [
           {
@@ -6027,11 +6537,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/ReviewPackOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such pack"
           },
           "422": {
             "content": {
@@ -6042,27 +6555,12 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "One pack with its stratum, controls and hypotheses",
         "tags": [
           "review packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 11 (2.11)",
-          "service": "review_pack",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/api/v1/review-packs/{pack_id}/export": {
@@ -7009,9 +7507,68 @@
     },
     "/api/v1/verdicts": {
       "get": {
-        "description": "In the frozen contract; 503 until Phase 11. Read-only by design \u2014 a recorded conclusion is never edited or withdrawn, only superseded by a later one. Each row is attributed to the supervisor who wrote it, and that attribution is part of the record rather than an audit detail.",
+        "description": "Read-only by design \u2014 a recorded conclusion is never edited or withdrawn, only superseded by a later one. Each row is attributed to the supervisor who wrote it, and that attribution is part of the record rather than an audit detail. Filter by `pack_id` and/or `case_id`.",
         "operationId": "list_verdicts_api_v1_verdicts_get",
         "parameters": [
+          {
+            "description": "Limit to one pack",
+            "in": "query",
+            "name": "pack_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Limit to one pack",
+              "title": "Pack Id"
+            }
+          },
+          {
+            "description": "Limit to one case",
+            "in": "query",
+            "name": "case_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Limit to one case",
+              "title": "Case Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
           {
             "in": "header",
             "name": "X-Actor",
@@ -7050,7 +7607,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/Page_VerdictOut_"
                 }
               }
             },
@@ -7065,30 +7622,15 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "Recorded supervisor conclusions",
         "tags": [
           "review packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 11 (2.11)",
-          "service": "review_pack",
-          "status": "pending"
-        }
+        ]
       },
       "post": {
-        "description": "The supervisor's judgement, entered by a person and attributed to them. Orion proposes hypotheses with evidence; it does not decide, and this route is where the human decision is recorded. 503 until Phase 11.",
+        "description": "The supervisor's judgement, entered by a person and attributed to them. Orion proposes hypotheses with evidence; it does not decide, and this route is where the human decision is recorded. The verdict is ledgered with `verdict_recorded`; a recorded conclusion is never edited or withdrawn, only superseded by a later one. `evidence_seen` lists the row ids the examiner actually checked.",
         "operationId": "record_verdict_api_v1_verdicts_post",
         "parameters": [
           {
@@ -7139,11 +7681,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
+                  "$ref": "#/components/schemas/VerdictOut"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "The case is not an item of the pack"
+          },
+          "404": {
+            "description": "No such pack"
           },
           "422": {
             "content": {
@@ -7154,27 +7702,12 @@
               }
             },
             "description": "Validation Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotImplementedResponse"
-                }
-              }
-            },
-            "description": "Not built yet"
           }
         },
         "summary": "Record a supervisor's own conclusion about a finding",
         "tags": [
           "review packs"
-        ],
-        "x-orion": {
-          "phase": "Phase 11 (2.11)",
-          "service": "review_pack",
-          "status": "pending"
-        }
+        ]
       }
     },
     "/health": {

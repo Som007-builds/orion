@@ -51,7 +51,13 @@ FORBIDDEN_TOKENS = frozenset(
 # `POST /verdicts`. They are not derived by Orion, so they are the one place a
 # verdict word is legitimate. Scoped to the schema's own name rather than the whole
 # document, so `EntitySummaryOut.verdict` would still fail.
-HUMAN_RECORD_SCHEMAS = frozenset({"VerdictIn", "VerdictOut", "Verdict"})
+# `ReviewPackItemOut` is allowed for one field only: its `verdict` mirrors the
+# supervisor's recorded conclusion back on the pack (populated from the `verdict`
+# table when a pack is read). The item itself is Orion-built; the verdict field is
+# not Orion-derived.
+HUMAN_RECORD_SCHEMAS = frozenset(
+    {"VerdictIn", "VerdictOut", "Verdict", "ReviewPackItemOut"}
+)
 
 
 def field_tokens(name: str) -> set[str]:

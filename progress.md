@@ -64,10 +64,10 @@ Owns `backend/app/{api,db,schemas,services}`, `backend/scripts/`, `backend/deplo
 | 2.8 | Indicators | NS-01/02/04/05 **stubs** | ✅ | `rules_engine.ns_stub()`. `missing_fields` deliberately **empty** — an unwritten detector is not an absence of evidence. Drop real code in behind the same signature |
 | 2.9 | Scoring | EGI/NSI/DTS/8 dims/SAP + tiers | ✅ | `app/services/scoring_service.py`, 13-section smoke green. **4 more bugs caught** — see notes below |
 | 2.10 | Evidence | Finding cards + counterfactual | ✅ | findings materialised with scores: FDR-surviving, unsuppressed, signal > 0. Card answers why / why-not / counterfactual from stored rows; `note` keeps "measured but not comparable" honest; evidence re-runnable via `scripts/reproduce_finding.py`; +20 read-path tests; phase smoke 20/20 |
-| 2.11 | Review packs | PPS + π + controls + HT | ⬜ | |
+| 2.11 | Review packs | PPS + π + controls + HT | ✅ | five live routes: GET/POST `/review-packs`, GET `/review-packs/{id}`, POST/GET `/verdicts`. Every item carries its inclusion probability π; targeted slice is ordered systematic PPS (never selects a zero-risk case), controls are severity-stratified SRS from the complement; HT prevalence with 95% CI (Poisson PPS + exact SRS variance), seeded reproducibility, `review_pack_created` / `verdict_recorded` ledgered. `/export` still 503 → 2.13. **`LedgerAction` grew an additive member `REVIEW_PACK_CREATED` — needs Dev 3 sign-off (frozen interface #5).** +22 tests |
 | 2.12 | API | All `/api/v1` routers + OpenAPI freeze | ✅ | 45 ops / 42 paths frozen in `docs/openapi-v1.json` + no-diff test; 28 tests. **Auth gap: header-derived actor labels but does NOT verify — see below** |
-| 2.13 | Export | Supervisory brief, signed | ⬜ | ⛔ needs OQ-9 key custody |
-| 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | ⛔ needs OQ-9 |
+| 2.13 | Export | Supervisory brief, signed | ⬜ | OQ-9 resolved — host-local Ed25519 key in `backend/data/keys/` (gitignored); build 2.13 on the same signing |
+| 2.14 | Packs | Stage/shadow/promote/rollback | ⬜ | uses the same signing as 2.13 |
 | 2.15 | Trends | Trends + change points | ⬜ | |
 | 2.16 | P1 | EG-12…EG-17, NS-03/06 | ⬜ | |
 | 2.17 | Ops | Sovereignty check | ✅ | `backend/scripts/sovereignty_check.py` — zero outbound attempts over a full pipeline run, and the guard is proved able to deny. Bundle/SBOM/restore still ⬜ |

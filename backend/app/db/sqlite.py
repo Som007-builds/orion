@@ -335,21 +335,28 @@ CREATE TABLE IF NOT EXISTS review_pack (
     n_target      INTEGER NOT NULL,
     n_control     INTEGER NOT NULL,
     n_selected    INTEGER NOT NULL,
+    n_population  INTEGER,
+    seed          INTEGER,
     ht_estimate   REAL,
     ht_ci_low     REAL,
     ht_ci_high    REAL,
+    diversity_caps TEXT,
     content_hash  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS review_pack_item (
     pack_id             TEXT NOT NULL REFERENCES review_pack(pack_id),
     case_id             TEXT NOT NULL,
+    entity_id           TEXT NOT NULL,
     slice_type          TEXT NOT NULL
                         CHECK (slice_type IN ('targeted','control')),
     inclusion_prob      REAL,
     case_risk_score     REAL NOT NULL,
     selected_because    TEXT NOT NULL,
     verification_prompts TEXT,
+    severity_norm       TEXT,
+    contributing_indicators TEXT,
+    finding_ids         TEXT,
     cluster_id          TEXT,
     analyst_pseudo      TEXT,
     PRIMARY KEY (pack_id, case_id)
@@ -363,6 +370,7 @@ CREATE TABLE IF NOT EXISTS verdict (
     verdict         TEXT NOT NULL
                     CHECK (verdict IN ('confirmed','benign','insufficient_information')),
     notes           TEXT,
+    evidence_seen   TEXT,
     examiner_pseudo TEXT NOT NULL,
     recorded_ts     TEXT NOT NULL
 );
@@ -588,6 +596,33 @@ def init_db() -> None:
     }
     if "notes" not in finding_columns:
         conn.execute("ALTER TABLE finding ADD COLUMN notes TEXT")
+    pack_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(review_pack)")
+    }
+    for column, ddl in (
+        ("n_population", "ALTER TABLE review_pack ADD COLUMN n_population INTEGER"),
+        ("seed", "ALTER TABLE review_pack ADD COLUMN seed INTEGER"),
+        ("diversity_caps", "ALTER TABLE review_pack ADD COLUMN diversity_caps TEXT"),
+    ):
+        if column not in pack_columns:
+            conn.execute(ddl)
+    item_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(review_pack_item)")
+    }
+    for column, ddl in (
+        ("entity_id", "ALTER TABLE review_pack_item ADD COLUMN entity_id TEXT NOT NULL DEFAULT ''"),
+        ("severity_norm", "ALTER TABLE review_pack_item ADD COLUMN severity_norm TEXT"),
+        ("contributing_indicators",
+         "ALTER TABLE review_pack_item ADD COLUMN contributing_indicators TEXT"),
+        ("finding_ids", "ALTER TABLE review_pack_item ADD COLUMN finding_ids TEXT"),
+    ):
+        if column not in item_columns:
+            conn.execute(ddl)
+    verdict_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(verdict)")
+    }
+    if "evidence_seen" not in verdict_columns:
+        conn.execute("ALTER TABLE verdict ADD COLUMN evidence_seen TEXT")
     # Migration log in application order (ascending), so the sequence reads the
     # way it happened rather than the way it was coded.
     conn.execute(
@@ -610,6 +645,12 @@ def init_db() -> None:
         "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
         "VALUES (5, datetime('now'), 'indicator_status, finding.notes, "
         "run.policy_profile_id added')"
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_version (version, applied_ts, note) "
+        "VALUES (6, datetime('now'), 'review_pack.seed/n_population/diversity_caps, "
+        "review_pack_item.entity_id/severity_norm/contributing_indicators/"
+        "finding_ids, verdict.evidence_seen added')"
     )
 
 

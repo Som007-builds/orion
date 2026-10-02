@@ -184,6 +184,11 @@ class DuckDBClient:
         self._writer_owner = thread_id
         try:
             if self._write_conn is None:
+                # The evidence store may be pointed at a path whose parent is
+                # provisioned later (a fresh mount, or a test suite that wipes
+                # the runtime tree between modules). Mirror `init_db`: open the
+                # file only after its directory exists.
+                self.db_path.parent.mkdir(parents=True, exist_ok=True)
                 self._write_conn = duckdb.connect(str(self.db_path))
                 self._execute_ddl(self._write_conn)
                 self._initialised = True
