@@ -1,4 +1,4 @@
-import { getActiveActor, getActiveRole } from "./rbac"
+import { getActiveActor, getActiveRole, BACKEND_ROLE_MAP } from "./rbac"
 import {
   EntityListItem,
   EntitySummaryOut,
@@ -42,7 +42,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const url = `${BASE_URL}${endpoint}`
   const headers = new Headers(options.headers || {})
   headers.set("Accept", "application/json")
-  headers.set("X-Role", role)
+  headers.set("X-Role", BACKEND_ROLE_MAP[role] || "Supervisor")
   headers.set("X-Actor", actor)
 
   if (options.body && typeof options.body === "string" && !headers.has("Content-Type")) {
@@ -109,7 +109,15 @@ export const api = {
   },
 
   async getEntitySummary(id: string): Promise<EntitySummaryOut> {
-    return request<EntitySummaryOut>(`/entities/${encodeURIComponent(id)}/summary`)
+    const raw = await request<any>(`/entities/${encodeURIComponent(id)}/summary`)
+    return {
+      ...raw,
+      entity_id: raw.entity?.entity_id || raw.entity_id || id,
+      name: raw.entity?.name || raw.name || id,
+      sector: raw.entity?.sector || raw.sector || "",
+      soc_model: raw.entity?.soc_model || raw.soc_model || "in-house",
+      size_tier: raw.entity?.size_tier || raw.size_tier || "medium",
+    }
   },
 
   async getEntityAssessability(id: string): Promise<AssessabilityReportOut> {

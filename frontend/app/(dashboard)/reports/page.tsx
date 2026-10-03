@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 export default function ReportsPage() {
-  const { activeEntityId } = useEntity()
+  const { activeEntityId, setActiveEntityId } = useEntity()
   const [summary, setSummary] = React.useState<EntitySummaryOut | null>(null)
   const [packs, setPacks] = React.useState<ReviewPackOut[]>([])
   const [ledgerVerify, setLedgerVerify] = React.useState<LedgerVerifyOut | null>(null)
@@ -25,13 +25,23 @@ export default function ReportsPage() {
     const loadReportData = async () => {
       setLoading(true)
       try {
-        if (activeEntityId) {
-          const s = await api.getEntitySummary(activeEntityId)
+        let currentEntityId = activeEntityId
+        if (!currentEntityId) {
+          const entityList = await api.getEntities()
+          const safeEntities = Array.isArray(entityList) ? entityList : []
+          if (safeEntities.length > 0) {
+            currentEntityId = safeEntities[0].id || safeEntities[0].entity_id || ""
+            setActiveEntityId(currentEntityId)
+          }
+        }
+
+        if (currentEntityId) {
+          const s = await api.getEntitySummary(currentEntityId)
           setSummary(s)
         }
         const pList = await api.getReviewPacks()
         const safePList = Array.isArray(pList) ? pList : []
-        setPacks(safePList.filter((p) => !activeEntityId || p.entity_id === activeEntityId))
+        setPacks(safePList.filter((p) => !currentEntityId || p.entity_id === currentEntityId))
 
         try {
           const lv = await api.verifyLedger()
@@ -47,7 +57,7 @@ export default function ReportsPage() {
     }
 
     loadReportData()
-  }, [activeEntityId])
+  }, [activeEntityId, setActiveEntityId])
 
   const handlePrint = () => {
     window.print()

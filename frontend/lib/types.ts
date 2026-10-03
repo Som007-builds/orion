@@ -69,19 +69,33 @@ export interface EntityListItem {
 }
 
 export interface EntitySummaryOut {
+  entity?: {
+    entity_id: string
+    name: string
+    sector: string
+    soc_model: 'in-house' | 'MSSP' | 'hybrid'
+    size_tier: 'small' | 'medium' | 'large'
+    coverage_type?: string
+    critical_asset_count?: number
+  }
   entity_id: string
   name: string
   sector: string
   soc_model: 'in-house' | 'MSSP' | 'hybrid'
   size_tier: 'small' | 'medium' | 'large'
-  egi: number
-  nsi: number
-  dts: number
+  egi: number | null
+  nsi: number | null
+  dts: number | null
+  sap?: number | null
   sap_tier: SapTier
   sap_rank_interval: RankInterval
   dimensions: DimensionScoreOut[]
   period_start?: string
   period_end?: string
+  n_findings?: number
+  n_not_assessable_dimensions?: number
+  overall_assessability?: Assessability
+  caveats?: string[]
 }
 
 export interface HTEstimate {

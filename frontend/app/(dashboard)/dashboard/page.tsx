@@ -59,6 +59,22 @@ export default function DashboardPage() {
     }
   }, [activeEntityId])
 
+  const handleSelectEntity = React.useCallback(
+    (id: string) => {
+      if (!id) return
+      setActiveEntityId(id)
+      api.getEntitySummary(id)
+        .then((s) => setSummary(s))
+        .catch((err) => {
+          console.error("Failed to load entity summary", err)
+        })
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" })
+      }
+    },
+    [setActiveEntityId]
+  )
+
   if (loading && entities.length === 0) {
     return (
       <div className="space-y-6 font-sans">
@@ -124,8 +140,8 @@ export default function DashboardPage() {
         dts={summary?.dts ?? null}
         sapTier={summary?.sap_tier || "NOT_ASSESSABLE"}
         rankInterval={summary?.sap_rank_interval || { rank: 0, low: 0, high: 0 }}
-        sector={summary?.sector}
-        socModel={summary?.soc_model}
+        sector={summary?.sector || summary?.entity?.sector}
+        socModel={summary?.soc_model || summary?.entity?.soc_model}
       />
 
       {/* Grid: 8-Dimension Radar & Entity Overview */}
@@ -133,7 +149,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-6">
           <PeerRadar
             dimensions={summary?.dimensions || []}
-            entityName={summary?.name || activeEntityId}
+            entityName={summary?.name || summary?.entity?.name || activeEntityId}
           />
         </div>
 
@@ -162,10 +178,10 @@ export default function DashboardPage() {
                     Supervised CSE
                   </div>
                   <div className="text-sm font-semibold text-foreground mt-0.5 truncate">
-                    {summary?.name || "No Entity Selected"}
+                    {summary?.name || summary?.entity?.name || "No Entity Selected"}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    ID: {summary?.entity_id || "N/A"}
+                    ID: {summary?.entity_id || summary?.entity?.entity_id || activeEntityId || "N/A"}
                   </div>
                 </div>
 
@@ -174,10 +190,10 @@ export default function DashboardPage() {
                     Operating Architecture
                   </div>
                   <div className="text-sm font-semibold text-foreground mt-0.5 capitalize">
-                    {summary?.soc_model || "In-house"} SOC
+                    {summary?.soc_model || summary?.entity?.soc_model || "In-house"} SOC
                   </div>
                   <div className="text-xs text-muted-foreground capitalize">
-                    Tier: {summary?.size_tier || "Medium"} Scale
+                    Tier: {summary?.size_tier || summary?.entity?.size_tier || "Medium"} Scale
                   </div>
                 </div>
               </div>
@@ -185,7 +201,7 @@ export default function DashboardPage() {
 
             <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Audit Lead Status:</span>
-              <Link href={`/findings?entity_id=${encodeURIComponent(summary?.entity_id || "")}`}>
+              <Link href={`/findings?entity_id=${encodeURIComponent(summary?.entity_id || summary?.entity?.entity_id || activeEntityId || "")}`}>
                 <Button variant="outline" size="xs">
                   Inspect Finding Cards
                 </Button>
@@ -205,7 +221,7 @@ export default function DashboardPage() {
         <Leaderboard
           entities={entities}
           activeEntityId={activeEntityId}
-          onSelectEntity={(id) => setActiveEntityId(id)}
+          onSelectEntity={handleSelectEntity}
         />
       </div>
     </div>

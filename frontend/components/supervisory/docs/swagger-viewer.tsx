@@ -2,21 +2,22 @@
 
 import * as React from "react"
 import dynamic from "next/dynamic"
-import "swagger-ui-react/swagger-ui.css"
-import { Button } from "@/components/ui/button"
+import "@scalar/api-reference-react/style.css"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, RefreshCw, ExternalLink } from "lucide-react"
-import type { SwaggerUIProps } from "swagger-ui-react"
+import { BookOpen, ExternalLink } from "lucide-react"
 
-// Dynamically import SwaggerUI to prevent SSR window reference issues
-const SwaggerUI = dynamic<SwaggerUIProps>(() => import("swagger-ui-react"), {
-  ssr: false,
-  loading: () => (
-    <div className="p-12 text-center text-xs font-sans text-muted-foreground animate-pulse">
-      Loading OpenAPI 3.1 specification viewer...
-    </div>
-  ),
-})
+// Dynamically import ApiReferenceReact for client-only rendering without Turbopack ESM refract bugs
+const ApiReference = dynamic(
+  () => import("@scalar/api-reference-react").then((mod) => mod.ApiReferenceReact),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-12 text-center text-xs font-sans text-muted-foreground animate-pulse">
+        Loading OpenAPI 3.1 contract registry viewer...
+      </div>
+    ),
+  }
+)
 
 export function SwaggerViewer() {
   const [specUrl, setSpecUrl] = React.useState("/openapi.json")
@@ -68,9 +69,17 @@ export function SwaggerViewer() {
         </div>
       </div>
 
-      {/* Embedded Swagger UI Container */}
-      <div className="swagger-container bg-card rounded-lg border border-border p-4 shadow-sm overflow-hidden">
-        <SwaggerUI url={specUrl} />
+      {/* Embedded API Reference Container */}
+      <div className="scalar-container bg-card rounded-lg border border-border overflow-hidden min-h-[600px]">
+        <ApiReference
+          configuration={{
+            spec: {
+              url: specUrl,
+            },
+            theme: "alternate",
+            hideDarkModeToggle: true,
+          }}
+        />
       </div>
     </div>
   )

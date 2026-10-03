@@ -13,6 +13,14 @@ export interface RoleDefinition {
   canApproveMappings: boolean
 }
 
+export const BACKEND_ROLE_MAP: Record<Role, string> = {
+  supervisor: "Supervisor",
+  examiner: "Examiner",
+  auditor: "Auditor",
+  administrator: "Administrator",
+  data_custodian: "Data Custodian",
+}
+
 export const ROLES: Record<Role, RoleDefinition> = {
   supervisor: {
     id: "supervisor",

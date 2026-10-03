@@ -93,13 +93,24 @@ def resolve_actor(
         try:
             role = Role(x_role)
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Unknown role '{x_role}'. Known roles: "
-                    f"{', '.join(r.value for r in Role)}."
-                ),
-            ) from None
+            matched = False
+            for r in Role:
+                if (
+                    r.value.lower() == x_role.lower()
+                    or r.name.lower() == x_role.lower()
+                    or r.value.lower().replace(" ", "_") == x_role.lower()
+                ):
+                    role = r
+                    matched = True
+                    break
+            if not matched:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Unknown role '{x_role}'. Known roles: "
+                        f"{', '.join(r.value for r in Role)}."
+                    ),
+                ) from None
 
     if x_actor:
         return Actor(name=x_actor.strip()[:128] or DEV_ACTOR, role=role, authenticated=True)

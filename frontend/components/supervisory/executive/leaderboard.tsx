@@ -174,14 +174,15 @@ export function Leaderboard({ entities, activeEntityId, onSelectEntity }: Leader
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
-                      variant="outline"
+                      variant={isSelected ? "default" : "outline"}
                       size="xs"
                       onClick={(ev) => {
                         ev.stopPropagation()
-                        if (onSelectEntity) onSelectEntity(e.id)
+                        const targetId = e.id || e.entity_id || ""
+                        if (onSelectEntity) onSelectEntity(targetId)
                       }}
                     >
-                      Inspect <ArrowRight className="h-3 w-3 ml-1" />
+                      {isSelected ? "Inspecting" : "Inspect"} <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </TableCell>
                 </TableRow>
