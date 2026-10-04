@@ -28,4 +28,14 @@ os.environ["ORION_PUBKEY_DIR"] = str(_TMP / "data" / "keys")
 
 def cleanup() -> None:
     """Remove the temp runtime tree. Called from each module's `tearDownModule`."""
+    # The application deliberately keeps a thread-local SQLite connection.
+    # Close it before removing the per-suite tree so the next test module gets
+    # a fresh database file and the complete DDL (including `pack`) is applied.
+    # Without this, module cleanup unlinks the file while the cached connection
+    # continues pointing at the old inode, producing order-dependent failures.
+    try:
+        from app.db.sqlite import close_connection
+        close_connection()
+    except Exception:
+        pass
     shutil.rmtree(_TMP, ignore_errors=True)

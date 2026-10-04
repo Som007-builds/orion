@@ -69,6 +69,11 @@ from app.services.assessability import (
 )
 from app.services.baseline_service import BaselineResult, get_baseline_service
 from app.services.policy_profile import policy_profile
+from app.ml.negative_space import (
+    ns01_silent_critical_assets, ns02_absent_alert_categories,
+    ns04_orphan_records, ns05_implausibly_low_activity,
+    ns03_temporal_inactivity, ns06_common_shock_nonresponse,
+)
 
 log = logging.getLogger(__name__)
 
@@ -1470,7 +1475,7 @@ class RulesEngine:
         for indicator_id in NS_INDICATOR_IDS:
             if wanted is not None and indicator_id not in wanted:
                 continue
-            out[indicator_id] = self.ns_stub(indicator_id, entity_id, period_start, period_end)
+            out[indicator_id] = self.run_negative_space(indicator_id, entity_id, period_start, period_end)
 
         if wanted is not None:
             missing = sorted(wanted - set(out))
@@ -1490,6 +1495,40 @@ class RulesEngine:
         return [spec.indicator_id for spec in SPECS]
 
     # -- Dev 3 integration point -------------------------------------------
+    def run_negative_space(self, indicator_id: str, entity_id: str, period_start: date, period_end: date) -> IndicatorResult:
+        """Run a Dev 3 detector on a read-only evidence snapshot.
+
+        The adapter deliberately keeps storage concerns here: ML receives
+        plain mappings and never opens or writes the evidence store.
+        """
+        if indicator_id not in NS_SPECS:
+            raise KeyError(f"Unknown negative-space indicator {indicator_id!r}")
+        try:
+            with get_duckdb().reader() as conn:
+                def rows(sql):
+                    result = conn.execute(sql, [entity_id, period_start, period_end]).fetchall()
+                    cols = [d[0] for d in conn.description]
+                    return [dict(zip(cols, row)) for row in result]
+                if indicator_id == "NS-01":
+                    evidence = rows("SELECT entity_id, asset_id_pseudo AS asset_id, date AS day, event_count AS activity FROM telemetry_daily WHERE entity_id=? AND date BETWEEN ? AND ? ORDER BY asset_id_pseudo, date")
+                    fn = ns01_silent_critical_assets
+                elif indicator_id == "NS-02":
+                    evidence = rows("SELECT mitre_tactic AS category, CAST(event_ts AS DATE) AS period, COUNT(*) AS count, MIN(alert_id) AS row_id FROM alert_record WHERE entity_id=? AND event_ts BETWEEN ? AND ? GROUP BY 1,2 ORDER BY 1,2")
+                    fn = ns02_absent_alert_categories
+                elif indicator_id == "NS-04":
+                    evidence = rows("SELECT 'alert' AS record_type, alert_id AS row_id, case_id FROM alert_record WHERE entity_id=? AND event_ts BETWEEN ? AND ?")
+                    evidence += rows("SELECT 'case' AS record_type, case_id AS row_id, case_id FROM case_record WHERE entity_id=? AND created_at BETWEEN ? AND ?")
+                    fn = ns04_orphan_records
+                else:
+                    evidence = rows("SELECT CAST(event_ts AS DATE) AS period, COUNT(*) AS activity, MIN(alert_id) AS row_id FROM alert_record WHERE entity_id=? AND event_ts BETWEEN ? AND ? GROUP BY 1 ORDER BY 1")
+                    fn = ns05_implausibly_low_activity
+            result = fn(evidence, entity_id=entity_id, period_start=period_start, period_end=period_end)
+            return result[0] if result else IndicatorResult.not_assessable(indicator_id, entity_id, Period(start=period_start, end=period_end), [], FindingSource.NEGATIVE_SPACE, NS_SPECS[indicator_id][1], "No signal was observed")
+        except Exception as exc:
+            log.warning("negative-space detector %s unavailable: %s", indicator_id, exc)
+            name, dimension, _family, needs = NS_SPECS[indicator_id]
+            return IndicatorResult.not_assessable(indicator_id, entity_id, Period(start=period_start, end=period_end), [needs], FindingSource.NEGATIVE_SPACE, dimension, f"{name} could not be assessed: {type(exc).__name__}")
+
     def ns_stub(
         self, indicator_id: str, entity_id: str, period_start: date, period_end: date
     ) -> IndicatorResult:
