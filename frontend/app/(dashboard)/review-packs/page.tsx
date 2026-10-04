@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useEntity } from "@/lib/entity-context"
 import { api, ApiError } from "@/lib/api"
-import { ReviewPackOut, ReviewPackItemOut } from "@/lib/types"
+import { ReviewPackOut, ReviewPackItemOut, EntityListItem } from "@/lib/types"
 import { PrevalencePanel } from "@/components/supervisory/review-pack/prevalence-panel"
 import { VerdictModal } from "@/components/supervisory/review-pack/verdict-modal"
 import {
@@ -22,10 +22,13 @@ import { toast } from "sonner"
 import {
   RefreshCw,
   Plus,
+  Layers,
 } from "lucide-react"
 
 export default function ReviewPacksPage() {
   const { activeEntityId } = useEntity()
+  const [entities, setEntities] = React.useState<EntityListItem[]>([])
+  const [selectedScope, setSelectedScope] = React.useState<string>("all")
   const [packs, setPacks] = React.useState<ReviewPackOut[]>([])
   const [selectedPackId, setSelectedPackId] = React.useState<string>("")
   const [currentPack, setCurrentPack] = React.useState<ReviewPackOut | null>(null)
@@ -41,6 +44,23 @@ export default function ReviewPacksPage() {
   const [targetedSize, setTargetedSize] = React.useState(15)
   const [controlSize, setControlSize] = React.useState(5)
 
+  // Load known entities for scope selection
+  React.useEffect(() => {
+    api.getEntities()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : []
+        setEntities(list)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Sync selected scope when activeEntityId changes, if user hasn't explicitly set another
+  React.useEffect(() => {
+    if (activeEntityId) {
+      setSelectedScope(activeEntityId)
+    }
+  }, [activeEntityId])
+
   const loadPacks = React.useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -49,9 +69,15 @@ export default function ReviewPacksPage() {
       const safePacks = Array.isArray(data) ? data : []
       setPacks(safePacks)
       if (safePacks.length > 0) {
-        const match = safePacks.find((p) => p.entity_id === activeEntityId)
-        const packToSelect = match ? match.pack_id : safePacks[0].pack_id
-        setSelectedPackId(packToSelect)
+        setSelectedPackId((prevId) => {
+          const stillExists = safePacks.some((p) => p.pack_id === prevId)
+          if (stillExists) return prevId
+          const match = safePacks.find((p) => p.entity_id === activeEntityId)
+          return match ? match.pack_id : safePacks[0].pack_id
+        })
+        const packToSelect = safePacks.find((p) => p.pack_id === selectedPackId)?.pack_id 
+          ?? safePacks.find((p) => p.entity_id === activeEntityId)?.pack_id 
+          ?? safePacks[0].pack_id
         const detailed = await api.getReviewPack(packToSelect)
         setCurrentPack(detailed)
       } else {
@@ -66,11 +92,11 @@ export default function ReviewPacksPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeEntityId])
+  }, [activeEntityId, selectedPackId])
 
   React.useEffect(() => {
     loadPacks()
-  }, [loadPacks])
+  }, [])
 
   const handleSelectPack = async (packId: string) => {
     setSelectedPackId(packId)
@@ -83,16 +109,13 @@ export default function ReviewPacksPage() {
   }
 
   const handleGeneratePack = async () => {
-    if (!activeEntityId) {
-      toast.error("Please select a target CSE entity first.")
-      return
-    }
     setGenerating(true)
     try {
+      const targetEntityIds = selectedScope && selectedScope !== "all" ? [selectedScope] : undefined
       const newPack = await api.createReviewPack({
-        entity_id: activeEntityId,
-        targeted_size: Number(targetedSize),
-        control_size: Number(controlSize),
+        entity_ids: targetEntityIds,
+        n_target: Number(targetedSize),
+        n_control: Number(controlSize),
         seed: 42,
       })
       toast.success("Review Pack Generated", {
@@ -102,7 +125,7 @@ export default function ReviewPacksPage() {
       setSelectedPackId(newPack.pack_id)
       setCurrentPack(newPack)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to generate pack"
+      const msg = err instanceof ApiError ? (err.message || err.detail) : err instanceof Error ? err.message : "Failed to generate pack"
       toast.error("Pack generation failed", { description: msg })
     } finally {
       setGenerating(false)
@@ -117,14 +140,16 @@ export default function ReviewPacksPage() {
         </Badge>
       )
     }
-    switch (verdict.verdict) {
+    const val = typeof verdict === "string" ? verdict : verdict.verdict
+    switch (val) {
       case "confirmed":
         return <Badge variant="destructive">Confirmed</Badge>
       case "benign":
         return <Badge variant="success">Benign</Badge>
       case "insufficient_information":
-      default:
         return <Badge variant="warning">Inconclusive</Badge>
+      default:
+        return <Badge variant="outline">{String(val)}</Badge>
     }
   }
 
@@ -143,7 +168,27 @@ export default function ReviewPacksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={loadPacks} disabled={loading}>
+          {currentPack && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const res = await api.exportReviewPack(currentPack.pack_id, "pdf")
+                  toast.success("Supervisory Brief Exported", {
+                    description: `Ed25519 signed: ${res.signature?.slice(0, 16)}...`,
+                  })
+                } catch (err: unknown) {
+                  const msg = err instanceof ApiError ? err.detail || err.message : "Export failed"
+                  toast.error("Export Failed", { description: msg })
+                }
+              }}
+              className="text-xs"
+            >
+              Export Signed Brief (PDF)
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={loadPacks} disabled={loading} className="text-xs">
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -157,11 +202,32 @@ export default function ReviewPacksPage() {
             Systematic PPS Pack Generator
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+        <CardContent className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
             <div>
               <label className="text-xs text-muted-foreground font-medium">
-                Targeted Sample Size (PPS)
+                Target Entity Scope
+              </label>
+              <select
+                value={selectedScope}
+                onChange={(e) => setSelectedScope(e.target.value)}
+                className="h-8 w-full mt-1 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:border-primary truncate"
+              >
+                <option value="all">Cohort-wide PPS (All Entities)</option>
+                {entities.map((e) => {
+                  const id = e.entity_id || e.id
+                  return (
+                    <option key={id} value={id}>
+                      {id} — {e.name || e.sector}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground font-medium">
+                Targeted Sample (PPS)
               </label>
               <input
                 type="number"
@@ -175,7 +241,7 @@ export default function ReviewPacksPage() {
 
             <div>
               <label className="text-xs text-muted-foreground font-medium">
-                Control Slice Size (SRS)
+                Control Slice (SRS)
               </label>
               <input
                 type="number"
@@ -212,12 +278,15 @@ export default function ReviewPacksPage() {
               </Button>
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground/80">
+            Probability Proportional to Size (PPS) draws high-risk cases while an independent SRS control slice calibrates Horvitz-Thompson prevalence. Target specific CSEs with active cases or choose Cohort-wide.
+          </p>
         </CardContent>
       </Card>
 
       {/* Prevalence Panel */}
       <PrevalencePanel
-        htEstimate={currentPack?.ht_prevalence}
+        htEstimate={currentPack?.ht_estimate ?? currentPack?.ht_prevalence}
         itemsCount={items.length}
       />
 
@@ -232,13 +301,18 @@ export default function ReviewPacksPage() {
               <select
                 value={selectedPackId}
                 onChange={(e) => handleSelectPack(e.target.value)}
+                aria-label="Select Review Pack"
                 className="h-8 px-2.5 text-xs bg-card border border-border rounded-md focus:outline-none focus:border-primary"
               >
-                {packs.map((p) => (
-                  <option key={p.pack_id} value={p.pack_id}>
-                    {p.pack_id} ({p.entity_id}) · {p.items_count} cases
-                  </option>
-                ))}
+                {packs.map((p) => {
+                  const count = p.items_count ?? (p as any).n_selected ?? (Array.isArray(p.items) ? p.items.length : 0)
+                  const label = p.entity_id ? p.entity_id : "Cohort-wide"
+                  return (
+                    <option key={p.pack_id} value={p.pack_id}>
+                      {p.pack_id} ({label}) · {count} cases
+                    </option>
+                  )
+                })}
               </select>
             )}
           </div>
@@ -271,56 +345,75 @@ export default function ReviewPacksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.item_id}>
-                  <TableCell className="font-semibold text-foreground">
-                    {item.case_id}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        item.stratum === "critical"
-                          ? "destructive"
-                          : item.stratum === "high"
-                          ? "warning"
-                          : item.stratum === "control"
-                          ? "outline"
-                          : "secondary"
-                      }
-                      className="text-xs capitalize"
+              {items.map((item, idx) => {
+                const riskScore = item.case_risk_score ?? item.risk_score ?? 0
+                const inclusionProb = item.inclusion_prob ?? item.inclusion_probability ?? null
+                const stratum = item.severity || item.stratum || item.slice_type || "targeted"
+                const promptText =
+                  typeof item.verification_prompts?.[0] === "object"
+                    ? (item.verification_prompts[0] as any)?.question
+                    : item.verification_prompts?.[0] || "Standard verification check"
+
+                return (
+                  <TableRow key={item.case_id || item.item_id || idx}>
+                    <TableCell className="font-semibold text-foreground font-mono">
+                      {item.case_id}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          stratum === "critical"
+                            ? "destructive"
+                            : stratum === "high"
+                            ? "warning"
+                            : stratum === "control"
+                            ? "outline"
+                            : "secondary"
+                        }
+                        className="text-xs capitalize font-mono"
+                      >
+                        {stratum}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium font-mono">
+                      {riskScore.toFixed(3)}
+                    </TableCell>
+                    <TableCell className="text-right text-primary font-semibold font-mono">
+                      {inclusionProb !== null && inclusionProb !== undefined
+                        ? inclusionProb.toFixed(4)
+                        : "Deterministic"}
+                    </TableCell>
+                    <TableCell
+                      className="max-w-[280px] truncate text-xs text-foreground"
+                      title={item.selected_because}
                     >
-                      {item.stratum}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {item.risk_score.toFixed(3)}
-                  </TableCell>
-                  <TableCell className="text-right text-primary font-semibold">
-                    {item.inclusion_probability.toFixed(4)}
-                  </TableCell>
-                  <TableCell className="max-w-[280px] truncate text-xs text-foreground" title={item.selected_because}>
-                    {item.selected_because}
-                  </TableCell>
-                  <TableCell className="max-w-[240px] truncate text-xs text-muted-foreground" title={item.verification_prompts?.join("; ")}>
-                    {item.verification_prompts?.[0] || "Standard verification check"}
-                  </TableCell>
-                  <TableCell>
-                    {getVerdictBadge(item.verdict)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => {
-                        setActiveItemForVerdict(item)
-                        setIsVerdictOpen(true)
-                      }}
+                      {item.selected_because}
+                    </TableCell>
+                    <TableCell
+                      className="max-w-[240px] truncate text-xs text-muted-foreground"
+                      title={promptText}
                     >
-                      Record Verdict
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      {promptText}
+                    </TableCell>
+                    <TableCell>{getVerdictBadge(item.verdict)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => {
+                          setActiveItemForVerdict({
+                            ...item,
+                            pack_id: currentPack?.pack_id || "",
+                          })
+                          setIsVerdictOpen(true)
+                        }}
+                      >
+                        Record Verdict
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         )}

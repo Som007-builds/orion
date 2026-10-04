@@ -31,6 +31,7 @@ from app.schemas.review_pack import (
 from app.services.report_service import get_report_service
 from app.services.review_pack_service import (
     PackNotFound,
+    ReviewPackError,
     get_review_pack_service,
 )
 
@@ -88,7 +89,11 @@ def list_packs(
     },
 )
 def create_pack(body: ReviewPackGenerateIn, writer: WriterDep) -> ReviewPackOut:
-    return get_review_pack_service().generate(body, writer.name)
+    try:
+        return get_review_pack_service().generate(body, writer.name)
+    except ReviewPackError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+
 
 
 @router.get(

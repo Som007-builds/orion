@@ -20,9 +20,11 @@ export function PrevalencePanel({ htEstimate, itemsCount }: PrevalencePanelProps
     )
   }
 
-  const ciLowerPercent = Math.max(0, htEstimate.ci_lower * 100)
-  const ciUpperPercent = Math.min(100, htEstimate.ci_upper * 100)
-  const estPercent = htEstimate.estimate * 100
+  const ciLow = htEstimate.ci_low ?? htEstimate.ci_lower ?? 0
+  const ciHigh = htEstimate.ci_high ?? htEstimate.ci_upper ?? 0
+  const ciLowerPercent = Math.max(0, ciLow * 100)
+  const ciUpperPercent = Math.min(100, ciHigh * 100)
+  const estPercent = (htEstimate.estimate ?? 0) * 100
 
   return (
     <Card className="border-l-4 border-l-primary font-sans">
@@ -43,7 +45,7 @@ export function PrevalencePanel({ htEstimate, itemsCount }: PrevalencePanelProps
         <div className="flex flex-col sm:flex-row items-start sm:items-baseline justify-between gap-2">
           <div>
             <div className="text-2xl font-bold text-foreground">
-              {formatPercent(htEstimate.estimate)}
+              {formatPercent(htEstimate.estimate ?? 0)}
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               Design-Unbiased Procedural Gap Prevalence
@@ -52,7 +54,7 @@ export function PrevalencePanel({ htEstimate, itemsCount }: PrevalencePanelProps
           <div className="text-right text-xs">
             <span className="text-muted-foreground">95% Confidence Interval: </span>
             <span className="font-bold text-primary">
-              [{formatPercent(htEstimate.ci_lower)} - {formatPercent(htEstimate.ci_upper)}]
+              [{formatPercent(ciLow)} - {formatPercent(ciHigh)}]
             </span>
           </div>
         </div>
@@ -76,7 +78,7 @@ export function PrevalencePanel({ htEstimate, itemsCount }: PrevalencePanelProps
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>0%</span>
-            <span>Est: {formatPercent(htEstimate.estimate)} (SE: {formatNumber(htEstimate.standard_error, 4)})</span>
+            <span>Est: {formatPercent(htEstimate.estimate ?? 0)} {htEstimate.standard_error ? `(SE: ${formatNumber(htEstimate.standard_error, 4)})` : ""}</span>
             <span>100%</span>
           </div>
         </div>

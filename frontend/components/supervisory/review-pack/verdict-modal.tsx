@@ -27,16 +27,30 @@ export function VerdictModal({ item, open, onClose, onSuccess }: VerdictModalPro
   const [rationale, setRationale] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
 
+  React.useEffect(() => {
+    if (item?.verdict) {
+      const v = typeof item.verdict === "string" ? item.verdict : item.verdict.verdict
+      if (v === "confirmed" || v === "benign" || v === "insufficient_information") {
+        setVerdict(v)
+      }
+    } else {
+      setVerdict("confirmed")
+    }
+    setRationale("")
+  }, [item, open])
+
   if (!item) return null
+
+  const inclusionProb = item.inclusion_prob ?? item.inclusion_probability ?? null
 
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
       await api.recordVerdict({
-        item_id: item.item_id,
-        pack_id: item.pack_id,
+        pack_id: item.pack_id || "",
         case_id: item.case_id,
         verdict,
+        notes: rationale.trim(),
         rationale: rationale.trim(),
       })
       toast.success(`Verdict recorded for ${item.case_id}: ${verdict}`, {
@@ -70,7 +84,7 @@ export function VerdictModal({ item, open, onClose, onSuccess }: VerdictModalPro
             <div className="text-muted-foreground text-xs font-medium">Sampling Rationale:</div>
             <div className="text-foreground">{item.selected_because}</div>
             <div className="text-xs text-primary font-medium mt-1">
-              Inclusion Probability (π): {item.inclusion_probability.toFixed(4)}
+              Inclusion Probability (π): {inclusionProb !== null ? inclusionProb.toFixed(4) : "Deterministic Control"}
             </div>
           </div>
 

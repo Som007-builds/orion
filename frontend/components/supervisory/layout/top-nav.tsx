@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Building2,
   BookOpen,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -71,11 +72,16 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
   const navItems = [
     { href: "/dashboard", label: "Executive Overview", visible: true },
     { href: "/review-packs", label: "Review Packs", visible: true },
+    { href: "/findings", label: "Findings", visible: true },
+    { href: "/trends", label: "Trends & Regimes", visible: true },
     { href: "/submissions", label: "Submissions & DQ", visible: true },
+    { href: "/governance/packs", label: "Rule Packs", visible: roleDef.canManagePacks || role === "supervisor" },
+    { href: "/governance/policy", label: "Policy", visible: true },
     { href: "/governance/ledger", label: "Audit Ledger", visible: roleDef.canViewLedger },
     { href: "/reports", label: "Supervisory Brief", visible: roleDef.canExportBriefs },
-    { href: "/docs", label: "API Docs", visible: true },
+    { href: "/docs", label: "API Docs", visible: true, external: true },
   ]
+
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-card/95 backdrop-blur font-sans">
@@ -208,18 +214,17 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
             )}
           </div>
 
-          {/* API Docs link */}
+          {/* API Docs link - opens separately in own page */}
           <Link
             href="/docs"
-            className={`h-7 px-2.5 flex items-center gap-1.5 border border-border rounded-md hover:bg-muted text-xs transition-colors ${
-              pathname === "/docs"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            title="API Documentation (OpenAPI 3.1)"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-7 px-2.5 flex items-center gap-1.5 border border-border rounded-md hover:bg-muted text-xs transition-colors text-muted-foreground hover:text-foreground"
+            title="API Documentation (Opens in separate page)"
           >
             <BookOpen className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Docs</span>
+            <ExternalLink className="h-3 w-3 opacity-60" />
           </Link>
 
           {/* Theme toggle */}
@@ -240,6 +245,21 @@ export function TopNav({ activeEntityId, onEntityChange }: TopNavProps) {
         {navItems
           .filter((item) => item.visible)
           .map((item) => {
+            if (item.external) {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 h-8 px-3.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors rounded-md whitespace-nowrap"
+                  title="Open API Docs in separate page"
+                >
+                  <span>{item.label}</span>
+                  <ExternalLink className="h-3 w-3 opacity-60" />
+                </a>
+              )
+            }
             const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
             return (
               <Link

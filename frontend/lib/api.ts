@@ -9,9 +9,33 @@ import {
   Counterfactual,
   EvidenceOut,
   SubmissionOut,
+  SubmissionDetail,
   LedgerEntryOut,
   LedgerVerifyOut,
+  TrendMetric,
+  TrendSeriesOut,
+  ChangePointsOut,
+  PackOut,
+  PackStageIn,
+  PackShadowOut,
+  PackTransitionOut,
+  PolicyProfileOut,
+  PolicyActivateIn,
+  PolicyActivateOut,
+  DQReportOut,
+  MappingOut,
+  MappingApprovalIn,
+  MappingApprovalOut,
+  QuarantineRowOut,
+  ReviewPackExportOut,
+  ExportFormatInfo,
+  IndicatorCatalogueItem,
+  RunOut,
+  RunTriggerIn,
+  BenchmarkOut,
+  UploadAccepted,
 } from "./types"
+
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"
 
@@ -66,21 +90,36 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!res.ok) {
     let errorDetail = ""
+    let errorMessage = `API Error (${res.status}): ${res.statusText}`
     try {
       const errJson = await res.json()
-      errorDetail = errJson.detail || JSON.stringify(errJson)
+      if (errJson) {
+        if (typeof errJson.message === "string" && errJson.message) {
+          errorMessage = errJson.message
+        } else if (typeof errJson.detail === "string" && errJson.detail) {
+          errorMessage = errJson.detail
+        } else if (Array.isArray(errJson.detail)) {
+          errorMessage = errJson.detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")
+        }
+        errorDetail = typeof errJson.detail === "string" ? errJson.detail : (errJson.message || JSON.stringify(errJson))
+      }
     } catch {
-      errorDetail = await res.text()
+      try {
+        errorDetail = await res.text()
+        if (errorDetail) errorMessage = errorDetail
+      } catch {
+        // ignore fallback text error
+      }
     }
 
     if (res.status === 503) {
-      throw new ApiError(503, "Service Pending Integration", errorDetail)
+      throw new ApiError(503, errorMessage || "Service Pending Integration", errorDetail)
     }
     if (res.status === 401 || res.status === 403) {
-      throw new ApiError(res.status, "Access Denied by RBAC Enclave Policy", errorDetail)
+      throw new ApiError(res.status, errorMessage || "Access Denied by RBAC Enclave Policy", errorDetail)
     }
 
-    throw new ApiError(res.status, `API Error (${res.status}): ${res.statusText}`, errorDetail)
+    throw new ApiError(res.status, errorMessage, errorDetail)
   }
 
   return res.json()
@@ -125,9 +164,13 @@ export const api = {
   },
 
   async getReviewPacks(): Promise<ReviewPackOut[]> {
-    const res = await request<PagedResponse<ReviewPackOut> | ReviewPackOut[]>("/review-packs")
-    if (Array.isArray(res)) return res
-    return Array.isArray(res?.items) ? res.items : []
+    const res = await request<PagedResponse<any> | any[]>("/review-packs")
+    const list = Array.isArray(res) ? res : (Array.isArray(res?.items) ? res.items : [])
+    return list.map((item: any) => ({
+      ...item,
+      items_count: item.n_selected ?? item.items_count ?? (Array.isArray(item.items) ? item.items.length : 0),
+      items: item.items || [],
+    }))
   },
 
   async getReviewPack(id: string): Promise<ReviewPackOut> {
@@ -135,27 +178,67 @@ export const api = {
   },
 
   async createReviewPack(data: {
-    entity_id: string
-    targeted_size: number
-    control_size: number
+    entity_id?: string
+    entity_ids?: string[]
+    n_target?: number
+    targeted_size?: number
+    n_control?: number
+    control_size?: number
     seed?: number
+    period_start?: string
+    period_end?: string
+    max_per_cluster?: number
+    max_per_analyst?: number
+    control_severity_strata?: string[]
   }): Promise<ReviewPackOut> {
+    const payload: Record<string, unknown> = {}
+
+    if (data.entity_ids && data.entity_ids.length > 0) {
+      const filtered = data.entity_ids.filter((id) => id && id !== "all")
+      if (filtered.length > 0) {
+        payload.entity_ids = filtered
+      }
+    } else if (data.entity_id && data.entity_id !== "all") {
+      payload.entity_ids = [data.entity_id]
+    }
+
+    payload.n_target = data.n_target ?? data.targeted_size ?? 20
+    payload.n_control = data.n_control ?? data.control_size ?? 10
+
+    if (data.seed !== undefined && data.seed !== null) {
+      payload.seed = data.seed
+    }
+    if (data.period_start) payload.period_start = data.period_start
+    if (data.period_end) payload.period_end = data.period_end
+    if (data.max_per_cluster) payload.max_per_cluster = data.max_per_cluster
+    if (data.max_per_analyst) payload.max_per_analyst = data.max_per_analyst
+    if (data.control_severity_strata) payload.control_severity_strata = data.control_severity_strata
+
     return request<ReviewPackOut>("/review-packs", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     })
   },
 
   async recordVerdict(data: {
-    item_id: string
     pack_id: string
     case_id: string
     verdict: "confirmed" | "benign" | "insufficient_information"
+    notes?: string
     rationale?: string
+    evidence_seen?: string[]
+    item_id?: string
   }): Promise<Verdict> {
+    const payload: Record<string, unknown> = {
+      pack_id: data.pack_id,
+      case_id: data.case_id,
+      verdict: data.verdict,
+      notes: data.notes || data.rationale || null,
+      evidence_seen: data.evidence_seen || [],
+    }
     return request<Verdict>("/verdicts", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     })
   },
 
@@ -200,4 +283,150 @@ export const api = {
   async verifyLedger(): Promise<LedgerVerifyOut> {
     return request<LedgerVerifyOut>("/ledger/verify")
   },
+
+  // Trends & Change Points (Phase 2.15)
+  async getTrends(
+    entityId: string,
+    metric: TrendMetric = "sap",
+    periodStart?: string,
+    periodEnd?: string
+  ): Promise<TrendSeriesOut> {
+    const params = new URLSearchParams({ entity_id: entityId, metric })
+    if (periodStart) params.set("period_start", periodStart)
+    if (periodEnd) params.set("period_end", periodEnd)
+    return request<TrendSeriesOut>(`/trends?${params.toString()}`)
+  },
+
+  async getChangePoints(
+    metric: TrendMetric = "sap",
+    periodStart?: string,
+    periodEnd?: string
+  ): Promise<ChangePointsOut> {
+    const params = new URLSearchParams({ metric })
+    if (periodStart) params.set("period_start", periodStart)
+    if (periodEnd) params.set("period_end", periodEnd)
+    return request<ChangePointsOut>(`/trends/change-points?${params.toString()}`)
+  },
+
+  // Signed Pack Lifecycle (Phase 2.14)
+  async stagePack(data: PackStageIn): Promise<PackOut> {
+    return request<PackOut>("/packs/stage", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  async shadowPack(packId: string): Promise<PackShadowOut> {
+    return request<PackShadowOut>(`/packs/${encodeURIComponent(packId)}/shadow`, {
+      method: "POST",
+    })
+  },
+
+  async promotePack(packId: string): Promise<PackTransitionOut> {
+    return request<PackTransitionOut>(`/packs/${encodeURIComponent(packId)}/promote`, {
+      method: "POST",
+    })
+  },
+
+  async rollbackPack(packId: string): Promise<PackTransitionOut> {
+    return request<PackTransitionOut>(`/packs/${encodeURIComponent(packId)}/rollback`, {
+      method: "POST",
+    })
+  },
+
+  // Policy Profiles (Phase 2.7)
+  async getPolicyProfiles(): Promise<PolicyProfileOut[]> {
+    const res = await request<PolicyProfileOut[] | { items: PolicyProfileOut[] }>("/policy-profiles")
+    if (Array.isArray(res)) return res
+    return Array.isArray((res as any)?.items) ? (res as any).items : []
+  },
+
+  async getActivePolicyProfile(): Promise<PolicyProfileOut> {
+    return request<PolicyProfileOut>("/policy-profiles/active")
+  },
+
+  async activatePolicyProfile(profileId: string, data: PolicyActivateIn = {}): Promise<PolicyActivateOut> {
+    return request<PolicyActivateOut>(`/policy-profiles/${encodeURIComponent(profileId)}/activate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  // Supervisory Brief Export (Phase 2.13)
+  async exportReviewPack(packId: string, fmt: "pdf" | "md" | "json" = "pdf"): Promise<ReviewPackExportOut> {
+    return request<ReviewPackExportOut>(`/review-packs/${encodeURIComponent(packId)}/export?fmt=${fmt}`)
+  },
+
+  async getExportFormats(): Promise<ExportFormatInfo[]> {
+    return request<ExportFormatInfo[]>("/exports/formats")
+  },
+
+  // Submissions Deep Details: DQ, Mapping & Quarantine (Phase 2.5, 2.6)
+  async getSubmissionDQ(submissionId: string): Promise<DQReportOut> {
+    return request<DQReportOut>(`/submissions/${encodeURIComponent(submissionId)}/dq`)
+  },
+
+  async getSubmissionMapping(submissionId: string): Promise<MappingOut> {
+    return request<MappingOut>(`/submissions/${encodeURIComponent(submissionId)}/mapping`)
+  },
+
+  async approveSubmissionMapping(submissionId: string, data: MappingApprovalIn): Promise<MappingApprovalOut> {
+    return request<MappingApprovalOut>(`/submissions/${encodeURIComponent(submissionId)}/mapping/approve`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  async getSubmissionQuarantine(
+    submissionId: string,
+    limit = 50,
+    offset = 0
+  ): Promise<PagedResponse<QuarantineRowOut>> {
+    const res = await request<PagedResponse<QuarantineRowOut> | QuarantineRowOut[]>(
+      `/submissions/${encodeURIComponent(submissionId)}/quarantine?limit=${limit}&offset=${offset}`
+    )
+    if (Array.isArray(res)) {
+      return {
+        items: res,
+        total: res.length,
+        limit,
+        offset,
+        has_more: false,
+      }
+    }
+    return res
+  },
+
+  async seedIngest(seedId: string): Promise<UploadAccepted> {
+    return request<UploadAccepted>(`/ingest/seed/${encodeURIComponent(seedId)}`, {
+      method: "POST",
+    })
+  },
+
+  // Indicators & Runs (Phase 2.12)
+  async getIndicators(): Promise<IndicatorCatalogueItem[]> {
+    const res = await request<IndicatorCatalogueItem[] | { items: IndicatorCatalogueItem[] }>("/indicators")
+    if (Array.isArray(res)) return res
+    return Array.isArray((res as any)?.items) ? (res as any).items : []
+  },
+
+  async getRuns(limit = 50, offset = 0): Promise<RunOut[]> {
+    const res = await request<PagedResponse<RunOut> | RunOut[]>(`/runs?limit=${limit}&offset=${offset}`)
+    if (Array.isArray(res)) return res
+    return Array.isArray((res as any)?.items) ? (res as any).items : []
+  },
+
+  async triggerRun(data: RunTriggerIn = {}): Promise<RunOut> {
+    return request<RunOut>("/runs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  async getBenchmarks(): Promise<BenchmarkOut[]> {
+    const res = await request<BenchmarkOut[] | { items: BenchmarkOut[] }>("/benchmarks")
+    if (Array.isArray(res)) return res
+    return Array.isArray((res as any)?.items) ? (res as any).items : []
+  },
 }
+
